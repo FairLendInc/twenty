@@ -1,7 +1,8 @@
+//TODO:
 import { FieldMetadataType } from '../FieldMetadataType';
-import type { CompositeType } from './composite-type.interface';
 import { actorCompositeType } from './actor.composite-type';
 import { addressCompositeType } from './address.composite-type';
+import type { CompositeType } from './composite-type.interface';
 import { currencyCompositeType } from './currency.composite-type';
 import { emailsCompositeType } from './emails.composite-type';
 import { fullNameCompositeType } from './full-name.composite-type';
