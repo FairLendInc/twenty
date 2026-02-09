@@ -9,9 +9,11 @@ import {
   type FieldMetadataDefaultValueDateTime,
   type FieldMetadataDefaultValueEmails,
   type FieldMetadataDefaultValueFullName,
+  type FieldMetadataDefaultValueImage,
   type FieldMetadataDefaultValueLinks,
   type FieldMetadataDefaultValueNowFunction,
   type FieldMetadataDefaultValueNumber,
+  type FieldMetadataDefaultValuePdf,
   type FieldMetadataDefaultValuePhones,
   type FieldMetadataDefaultValueRawJson,
   type FieldMetadataDefaultValueRichText,
@@ -52,6 +54,8 @@ type FieldMetadataDefaultValueMapping = {
   [FieldMetadataType.RICH_TEXT]: FieldMetadataDefaultValueRichText;
   [FieldMetadataType.ACTOR]: FieldMetadataDefaultActor;
   [FieldMetadataType.ARRAY]: FieldMetadataDefaultArray;
+  [FieldMetadataType.IMAGE]: FieldMetadataDefaultValueImage;
+  [FieldMetadataType.PDF]: FieldMetadataDefaultValuePdf;
 };
 
 export type FieldMetadataClassValidation =

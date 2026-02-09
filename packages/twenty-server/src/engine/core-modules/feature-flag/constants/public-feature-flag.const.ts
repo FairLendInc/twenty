@@ -13,6 +13,15 @@ export type PublicFeatureFlag = {
 
 export const PUBLIC_FEATURE_FLAGS: PublicFeatureFlag[] = [
   {
+    key: FeatureFlagKey.IS_ATTACHMENTS_AS_FIELDS_ENABLED,
+    metadata: {
+      label: 'Attachments as Fields',
+      description: 'Enable attachments to be displayed as fields in the record view',
+      imagePath:
+        'https://twenty.com/images/lab/is-attachments-as-fields-enabled.png',
+    },
+  },
+  {
     key: FeatureFlagKey.IS_IMAP_SMTP_CALDAV_ENABLED,
     metadata: {
       label: 'IMAP, SMTP, CalDAV',

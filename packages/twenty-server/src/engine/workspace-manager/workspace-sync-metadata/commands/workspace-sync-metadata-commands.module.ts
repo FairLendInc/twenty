@@ -1,4 +1,3 @@
-//TODO:
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -12,12 +11,13 @@ import { WorkspaceHealthModule } from 'src/engine/workspace-manager/workspace-he
 import { SyncWorkspaceLoggerModule } from 'src/engine/workspace-manager/workspace-sync-metadata/commands/services/sync-workspace-logger.module';
 import { WorkspaceSyncMetadataModule } from 'src/engine/workspace-manager/workspace-sync-metadata/workspace-sync-metadata.module';
 
+import { FixCompositeFieldColumnsCommand } from './fix-composite-field-columns.command';
 import { SyncWorkspaceMetadataCommand } from './sync-workspace-metadata.command';
 
 @Module({
   imports: [
     WorkspaceSyncMetadataModule,
-  WorkspaceHealthModule,
+    WorkspaceHealthModule,
     WorkspaceModule,
     DataSourceModule,
     WorkspaceDataSourceModule,
@@ -26,7 +26,7 @@ import { SyncWorkspaceMetadataCommand } from './sync-workspace-metadata.command'
     SyncWorkspaceLoggerModule,
     ApplicationModule,
   ],
-  providers: [SyncWorkspaceMetadataCommand],
-  exports: [SyncWorkspaceMetadataCommand],
+  providers: [SyncWorkspaceMetadataCommand, FixCompositeFieldColumnsCommand],
+  exports: [SyncWorkspaceMetadataCommand, FixCompositeFieldColumnsCommand],
 })
 export class WorkspaceSyncMetadataCommandsModule {}

@@ -36,6 +36,10 @@ import { isFieldRichTextV2Value } from '@/object-record/record-field/ui/types/gu
 import { isFieldSelect } from '@/object-record/record-field/ui/types/guards/isFieldSelect';
 import { isFieldSelectValue } from '@/object-record/record-field/ui/types/guards/isFieldSelectValue';
 import { isFieldText } from '@/object-record/record-field/ui/types/guards/isFieldText';
+import { isFieldImage } from '@/object-record/record-field/ui/types/guards/isFieldImage';
+import { isFieldImageValue } from '@/object-record/record-field/ui/types/guards/isFieldImageValue';
+import { isFieldPdf } from '@/object-record/record-field/ui/types/guards/isFieldPdf';
+import { isFieldPdfValue } from '@/object-record/record-field/ui/types/guards/isFieldPdfValue';
 import { isFieldTsVector } from '@/object-record/record-field/ui/types/guards/isFieldTsVectorValue';
 import { isFieldUuid } from '@/object-record/record-field/ui/types/guards/isFieldUuid';
 import { isDefined } from 'twenty-shared/utils';
@@ -172,6 +176,20 @@ export const isFieldValueEmpty = ({
   if (isFieldRichTextV2(fieldDefinition)) {
     return (
       !isFieldRichTextV2Value(fieldValue) || isValueEmpty(fieldValue?.markdown)
+    );
+  }
+
+  if (isFieldImage(fieldDefinition)) {
+    return (
+      !isFieldImageValue(fieldValue) ||
+      isValueEmpty(fieldValue.primaryAttachmentId)
+    );
+  }
+
+  if (isFieldPdf(fieldDefinition)) {
+    return (
+      !isFieldPdfValue(fieldValue) ||
+      isValueEmpty(fieldValue.primaryAttachmentId)
     );
   }
 

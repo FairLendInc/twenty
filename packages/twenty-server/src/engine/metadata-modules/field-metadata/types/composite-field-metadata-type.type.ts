@@ -9,6 +9,8 @@ const compositeFieldTypes = [
   FieldMetadataType.PHONES,
   FieldMetadataType.RICH_TEXT_V2,
   FieldMetadataType.ACTOR,
+  FieldMetadataType.IMAGE,
+  FieldMetadataType.PDF,
 ] as const;
 
 export type CompositeFieldMetadataType = (typeof compositeFieldTypes)[number];

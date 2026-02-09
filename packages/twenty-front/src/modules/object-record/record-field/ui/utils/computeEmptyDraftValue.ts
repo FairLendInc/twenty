@@ -5,8 +5,10 @@ import { isFieldAddress } from '@/object-record/record-field/ui/types/guards/isF
 import { isFieldCurrency } from '@/object-record/record-field/ui/types/guards/isFieldCurrency';
 import { isFieldDateTime } from '@/object-record/record-field/ui/types/guards/isFieldDateTime';
 import { isFieldFullName } from '@/object-record/record-field/ui/types/guards/isFieldFullName';
+import { isFieldImage } from '@/object-record/record-field/ui/types/guards/isFieldImage';
 import { isFieldLinks } from '@/object-record/record-field/ui/types/guards/isFieldLinks';
 import { isFieldNumber } from '@/object-record/record-field/ui/types/guards/isFieldNumber';
+import { isFieldPdf } from '@/object-record/record-field/ui/types/guards/isFieldPdf';
 import { isFieldRawJson } from '@/object-record/record-field/ui/types/guards/isFieldRawJson';
 import { isFieldRelation } from '@/object-record/record-field/ui/types/guards/isFieldRelation';
 import { isFieldText } from '@/object-record/record-field/ui/types/guards/isFieldText';
@@ -63,6 +65,13 @@ export const computeEmptyDraftValue = <FieldValue>({
       firstName: '',
       lastName: '',
     } as FieldInputDraftValue<FieldValue>;
+  }
+
+  if (isFieldImage(fieldDefinition) || isFieldPdf(fieldDefinition)) {
+    return {
+      primaryAttachmentId: null,
+      additionalAttachmentIds: null,
+    } as unknown as FieldInputDraftValue<FieldValue>;
   }
 
   throw new CustomError(

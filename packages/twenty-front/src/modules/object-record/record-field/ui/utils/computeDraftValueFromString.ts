@@ -8,6 +8,8 @@ import { isFieldEmails } from '@/object-record/record-field/ui/types/guards/isFi
 import { isFieldFullName } from '@/object-record/record-field/ui/types/guards/isFieldFullName';
 import { isFieldLinks } from '@/object-record/record-field/ui/types/guards/isFieldLinks';
 import { isFieldNumber } from '@/object-record/record-field/ui/types/guards/isFieldNumber';
+import { isFieldImage } from '@/object-record/record-field/ui/types/guards/isFieldImage';
+import { isFieldPdf } from '@/object-record/record-field/ui/types/guards/isFieldPdf';
 import { isFieldPhones } from '@/object-record/record-field/ui/types/guards/isFieldPhones';
 import { isFieldRelation } from '@/object-record/record-field/ui/types/guards/isFieldRelation';
 import { isFieldText } from '@/object-record/record-field/ui/types/guards/isFieldText';
@@ -73,6 +75,13 @@ export const computeDraftValueFromString = <FieldValue>({
     return {
       primaryPhoneNumber: value,
     } as FieldInputDraftValue<FieldValue>;
+  }
+
+  if (isFieldImage(fieldDefinition) || isFieldPdf(fieldDefinition)) {
+    return {
+      primaryAttachmentId: null,
+      additionalAttachmentIds: null,
+    } as unknown as FieldInputDraftValue<FieldValue>;
   }
 
   throw new CustomError(

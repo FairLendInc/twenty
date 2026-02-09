@@ -12,12 +12,14 @@ import {
   type FieldEmailMetadata,
   type FieldEmailsMetadata,
   type FieldFullNameMetadata,
+  type FieldImageMetadata,
   type FieldLinkMetadata,
   type FieldLinksMetadata,
   type FieldMetadata,
   type FieldMorphRelationMetadata,
   type FieldMultiSelectMetadata,
   type FieldNumberMetadata,
+  type FieldPdfMetadata,
   type FieldPhoneMetadata,
   type FieldPhonesMetadata,
   type FieldRatingMetadata,
@@ -82,7 +84,11 @@ type AssertFieldMetadataFunction = <
                                                   ? FieldArrayMetadata
                                                   : E extends 'PHONES'
                                                     ? FieldPhonesMetadata
-                                                    : never,
+                                                    : E extends 'IMAGE'
+                                                      ? FieldImageMetadata
+                                                      : E extends 'PDF'
+                                                        ? FieldPdfMetadata
+                                                        : never,
 >(
   fieldType: E,
   fieldTypeGuard: (

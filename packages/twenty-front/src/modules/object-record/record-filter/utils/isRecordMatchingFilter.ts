@@ -385,6 +385,10 @@ export const isRecordMatchingFilter = ({
           value: record[filterKey],
         });
       }
+      case FieldMetadataType.IMAGE:
+      case FieldMetadataType.PDF: {
+        return true;
+      }
       default: {
         throw new Error(
           `Not implemented yet for field type "${objectMetadataField.type}"`,

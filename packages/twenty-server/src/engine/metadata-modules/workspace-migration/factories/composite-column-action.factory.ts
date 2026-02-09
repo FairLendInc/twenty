@@ -6,6 +6,7 @@ import {
 } from 'twenty-shared/types';
 
 import { type FieldMetadataEntity } from 'src/engine/metadata-modules/field-metadata/field-metadata.entity';
+import { type CompositeFieldMetadataType } from 'src/engine/metadata-modules/field-metadata/types/composite-field-metadata-type.type';
 import { computeCompositeColumnName } from 'src/engine/metadata-modules/field-metadata/utils/compute-column-name.util';
 import { serializeDefaultValue } from 'src/engine/metadata-modules/field-metadata/utils/serialize-default-value';
 import { ColumnActionAbstractFactory } from 'src/engine/metadata-modules/workspace-migration/factories/column-action-abstract.factory';
@@ -20,16 +21,7 @@ import {
   WorkspaceMigrationExceptionCode,
 } from 'src/engine/metadata-modules/workspace-migration/workspace-migration.exception';
 
-// TODO: could we export this to GraphQL ?
-// TOOD: once this module is removed, replace existing usages with CompositeFieldMetadataType from composite-field-metadata-type.type.ts
-export type CompositeFieldMetadataType =
-  | FieldMetadataType.ADDRESS
-  | FieldMetadataType.CURRENCY
-  | FieldMetadataType.FULL_NAME
-  | FieldMetadataType.LINKS
-  | FieldMetadataType.EMAILS
-  | FieldMetadataType.PHONES
-  | FieldMetadataType.RICH_TEXT_V2;
+export { type CompositeFieldMetadataType } from 'src/engine/metadata-modules/field-metadata/types/composite-field-metadata-type.type';
 
 @Injectable()
 export class CompositeColumnActionFactory extends ColumnActionAbstractFactory<CompositeFieldMetadataType> {

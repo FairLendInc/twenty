@@ -189,6 +189,14 @@ export type FieldTsVectorMetadata = BaseFieldMetadata & {
   settings?: null;
 };
 
+export type FieldImageMetadata = BaseFieldMetadata & {
+  settings?: null;
+};
+
+export type FieldPdfMetadata = BaseFieldMetadata & {
+  settings?: null;
+};
+
 export type FieldMetadata =
   | FieldBooleanMetadata
   | FieldCurrencyMetadata
@@ -213,6 +221,8 @@ export type FieldMetadata =
   | FieldActorMetadata
   | FieldArrayMetadata
   | FieldTsVectorMetadata
+  | FieldImageMetadata
+  | FieldPdfMetadata
   | FieldRichTextV2Metadata
   | FieldRichTextMetadata;
 
@@ -317,4 +327,14 @@ export type FieldPhonesValue = {
   primaryPhoneCountryCode: string;
   primaryPhoneCallingCode?: string;
   additionalPhones?: PhoneRecord[] | null;
+};
+
+export type FieldImageValue = {
+  primaryAttachmentId: string | null;
+  additionalAttachmentIds: string[] | null;
+};
+
+export type FieldPdfValue = {
+  primaryAttachmentId: string | null;
+  additionalAttachmentIds: string[] | null;
 };

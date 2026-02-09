@@ -44,4 +44,12 @@ export const COMPOSITE_FIELD_TYPE_SUB_FIELDS_NAMES = {
     blocknote: 'blocknote',
     markdown: 'markdown',
   },
+  [FieldMetadataType.IMAGE]: {
+    primaryAttachmentId: 'primaryAttachmentId',
+    additionalAttachmentIds: 'additionalAttachmentIds',
+  },
+  [FieldMetadataType.PDF]: {
+    primaryAttachmentId: 'primaryAttachmentId',
+    additionalAttachmentIds: 'additionalAttachmentIds',
+  },
 } as const;

@@ -132,6 +132,9 @@ export class ClientConfigService {
       isAttachmentPreviewEnabled: this.twentyConfigService.get(
         'IS_ATTACHMENT_PREVIEW_ENABLED',
       ),
+      isAttachmentsAsFieldsEnabled: this.twentyConfigService.get(
+        'IS_ATTACHMENTS_AS_FIELDS_ENABLED',
+      ),
       analyticsEnabled: this.twentyConfigService.get('ANALYTICS_ENABLED'),
       canManageFeatureFlags:
         this.twentyConfigService.get('NODE_ENV') ===

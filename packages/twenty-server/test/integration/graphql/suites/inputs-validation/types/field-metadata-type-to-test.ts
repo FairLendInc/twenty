@@ -7,14 +7,18 @@ type FieldMetadataTypesNotTestedForFilterInputValidation =
   | 'ACTOR'
   | 'MORPH_RELATION'
   | 'NUMERIC'
-  | 'RICH_TEXT_V2';
+  | 'RICH_TEXT_V2'
+  | 'IMAGE'
+  | 'PDF';
 
 type FieldMetadataTypesNotTestedForCreateInputValidation =
   | 'TS_VECTOR'
   | 'ACTOR'
   | 'POSITION'
   | 'MORPH_RELATION'
-  | 'NUMERIC';
+  | 'NUMERIC'
+  | 'IMAGE'
+  | 'PDF';
 
 export type FieldMetadataTypesToTestForCreateInputValidation = Exclude<
   FieldMetadataType,
