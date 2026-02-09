@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react';
+import { useContext, useRef, useState } from 'react';
 
 import { useAttachmentForField } from '@/activities/files/hooks/useAttachmentForField';
 import { useUploadAttachmentFile } from '@/activities/files/hooks/useUploadAttachmentFile';
@@ -6,11 +6,14 @@ import { FieldContext } from '@/object-record/record-field/ui/contexts/FieldCont
 import { FieldInputEventContext } from '@/object-record/record-field/ui/contexts/FieldInputEventContext';
 import { usePdfField } from '@/object-record/record-field/ui/meta-types/hooks/usePdfField';
 import { PdfInput } from '@/ui/input/components/PdfInput';
+import { useListenClickOutside } from '@/ui/utilities/pointer-event/hooks/useListenClickOutside';
 
 export const PdfFieldInput = () => {
   const { recordId, fieldDefinition } = useContext(FieldContext);
-  const { onSubmit } = useContext(FieldInputEventContext);
+  const { onSubmit, onClickOutside } = useContext(FieldInputEventContext);
   const { fieldValue } = usePdfField();
+
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const attachmentId = fieldValue?.primaryAttachmentId ?? null;
   const { attachment } = useAttachmentForField(attachmentId);
@@ -18,6 +21,14 @@ export const PdfFieldInput = () => {
 
   const [isUploading, setIsUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useListenClickOutside({
+    refs: [containerRef],
+    callback: (event) => {
+      onClickOutside?.({ event });
+    },
+    listenerId: 'PdfFieldInput',
+  });
 
   const handleUpload = async (file: File) => {
     setIsUploading(true);
@@ -56,12 +67,14 @@ export const PdfFieldInput = () => {
   };
 
   return (
-    <PdfInput
-      fileName={attachment?.name ?? null}
-      onUpload={handleUpload}
-      onRemove={handleRemove}
-      isUploading={isUploading}
-      errorMessage={errorMessage}
-    />
+    <div ref={containerRef}>
+      <PdfInput
+        fileName={attachment?.name ?? null}
+        onUpload={handleUpload}
+        onRemove={handleRemove}
+        isUploading={isUploading}
+        errorMessage={errorMessage}
+      />
+    </div>
   );
 };
