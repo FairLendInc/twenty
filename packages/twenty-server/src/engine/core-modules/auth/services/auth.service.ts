@@ -8,6 +8,7 @@ import { render } from '@react-email/render';
 import { addMilliseconds } from 'date-fns';
 import ms from 'ms';
 import { PasswordUpdateNotifyEmail } from 'twenty-emails';
+import { PermissionFlagType } from 'twenty-shared/constants';
 import { AppPath } from 'twenty-shared/types';
 import { assertIsDefinedOrThrow, isDefined } from 'twenty-shared/utils';
 import { Repository } from 'typeorm';
@@ -64,11 +65,10 @@ import { WorkspaceInvitationService } from 'src/engine/core-modules/workspace-in
 import { AuthProviderEnum } from 'src/engine/core-modules/workspace/types/workspace.type';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { workspaceValidator } from 'src/engine/core-modules/workspace/workspace.validate';
-import { PermissionFlagType } from 'src/engine/metadata-modules/permissions/constants/permission-flag-type.constants';
 import { PermissionsService } from 'src/engine/metadata-modules/permissions/permissions.service';
 
 @Injectable()
-// eslint-disable-next-line @nx/workspace-inject-workspace-repository
+// eslint-disable-next-line twenty/inject-workspace-repository
 export class AuthService {
   constructor(
     private readonly accessTokenService: AccessTokenService,
@@ -191,7 +191,7 @@ export class AuthService {
         'Wrong password',
         AuthExceptionCode.FORBIDDEN_EXCEPTION,
         {
-          userFriendlyMessage: msg`Wrong password`,
+          userFriendlyMessage: msg`Wrong password.`,
         },
       );
     }
@@ -357,6 +357,9 @@ export class AuthService {
       throw new AuthException(
         'Email is required',
         AuthExceptionCode.INVALID_INPUT,
+        {
+          userFriendlyMessage: msg`Email is required.`,
+        },
       );
     }
 
@@ -394,23 +397,23 @@ export class AuthService {
     workspaceId,
     impersonatorUserWorkspaceId,
     impersonatedUserWorkspaceId,
-    impersonatorUserId,
+    _impersonatorUserId,
     impersonatedUserId,
   }: {
     workspaceId: string;
     impersonatorUserWorkspaceId: string;
     impersonatedUserWorkspaceId: string;
-    impersonatorUserId: string;
+    _impersonatorUserId: string;
     impersonatedUserId: string;
   }): Promise<AuthTokens> {
     const correlationId = randomUUID();
 
     const analytics = this.auditService.createContext({
       workspaceId,
-      userId: impersonatorUserId,
+      userWorkspaceId: impersonatorUserWorkspaceId,
     });
 
-    await analytics.insertWorkspaceEvent('Monitoring', {
+    analytics.insertWorkspaceEvent('Monitoring', {
       eventName: 'workspace.impersonation.attempted',
       message: `correlationId=${correlationId}; impersonatorUserWorkspaceId=${impersonatorUserWorkspaceId}; targetUserWorkspaceId=${impersonatedUserWorkspaceId}; workspaceId=${workspaceId}`,
     });
@@ -436,7 +439,7 @@ export class AuthService {
       true,
     );
 
-    await analytics.insertWorkspaceEvent('Monitoring', {
+    analytics.insertWorkspaceEvent('Monitoring', {
       eventName: 'workspace.impersonation.issued',
       message: `correlationId=${correlationId}; impersonatorUserWorkspaceId=${impersonatorUserWorkspaceId}; targetUserWorkspaceId=${impersonatedUserWorkspaceId}; workspaceId=${workspaceId}`,
     });
@@ -603,6 +606,9 @@ export class AuthService {
       throw new AuthException(
         'Password is too weak',
         AuthExceptionCode.INVALID_INPUT,
+        {
+          userFriendlyMessage: msg`Password is too weak.`,
+        },
       );
     }
 
@@ -650,6 +656,9 @@ export class AuthService {
       throw new AuthException(
         'Workspace does not exist',
         AuthExceptionCode.INVALID_INPUT,
+        {
+          userFriendlyMessage: msg`Workspace does not exist.`,
+        },
       );
     }
 

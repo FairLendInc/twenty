@@ -4,6 +4,7 @@ import { createEmptyFlatEntityMaps } from 'src/engine/metadata-modules/flat-enti
 import { type MetadataFlatEntityAndRelatedFlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/types/metadata-related-types.type';
 import { addFlatEntityToFlatEntityAndRelatedEntityMapsThroughMutationOrThrow } from 'src/engine/metadata-modules/flat-entity/utils/add-flat-entity-to-flat-entity-and-related-entity-maps-through-mutation-or-throw.util';
 import { addFlatEntityToFlatEntityMapsOrThrow } from 'src/engine/metadata-modules/flat-entity/utils/add-flat-entity-to-flat-entity-maps-or-throw.util';
+import { findFlatEntityByIdInFlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/utils/find-flat-entity-by-id-in-flat-entity-maps.util';
 import { getFlatFieldMetadataMock } from 'src/engine/metadata-modules/flat-field-metadata/__mocks__/get-flat-field-metadata.mock';
 import { type FlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata.type';
 import { getFlatObjectMetadataMock } from 'src/engine/metadata-modules/flat-object-metadata/__mocks__/get-flat-object-metadata.mock';
@@ -20,14 +21,14 @@ describe('addFlatEntityToFlatEntityAndRelatedEntityMapsThroughMutationOrThrow', 
       id: objectMetadataId,
       universalIdentifier: 'object-universal-1',
       viewIds: [],
-      fieldMetadataIds: [],
+      fieldIds: [],
       workspaceId,
       imageIdentifierFieldMetadataId: '20202020-9d65-415f-b0e1-216a2e257ea4',
       labelIdentifierFieldMetadataId: '20202020-1a62-405c-87fa-4d4fd215851b',
       applicationId,
     });
 
-    const mockFieldMEtadata = getFlatFieldMetadataMock({
+    const mockFieldMetadata = getFlatFieldMetadataMock({
       objectMetadataId,
       id: '202020-71a3-4856-a3d0-d08cea0ecec6',
       type: FieldMetadataType.DATE,
@@ -35,9 +36,9 @@ describe('addFlatEntityToFlatEntityAndRelatedEntityMapsThroughMutationOrThrow', 
       applicationId,
       universalIdentifier: 'field-universal-1',
       viewFieldIds: [],
-      viewGroupIds: [],
       viewFilterIds: [],
       calendarViewIds: [],
+      mainGroupByFieldMetadataViewIds: [],
     });
 
     const mockView: Pick<FlatView, 'id'> & Partial<FlatView> = {
@@ -49,13 +50,13 @@ describe('addFlatEntityToFlatEntityAndRelatedEntityMapsThroughMutationOrThrow', 
       viewFilterIds: [],
       viewGroupIds: [],
       applicationId,
-      calendarFieldMetadataId: mockFieldMEtadata.id,
+      calendarFieldMetadataId: mockFieldMetadata.id,
     };
 
     const flatEntityAndRelatedMapsToMutate: MetadataFlatEntityAndRelatedFlatEntityMaps<'view'> =
       {
         flatFieldMetadataMaps: addFlatEntityToFlatEntityMapsOrThrow({
-          flatEntity: mockFieldMEtadata,
+          flatEntity: mockFieldMetadata,
           flatEntityMaps: createEmptyFlatEntityMaps(),
         }),
         flatObjectMetadataMaps: addFlatEntityToFlatEntityMapsOrThrow({
@@ -72,21 +73,26 @@ describe('addFlatEntityToFlatEntityAndRelatedEntityMapsThroughMutationOrThrow', 
     });
 
     expect(
-      flatEntityAndRelatedMapsToMutate.flatViewMaps.byId[mockView.id],
+      findFlatEntityByIdInFlatEntityMaps({
+        flatEntityId: mockView.id,
+        flatEntityMaps: flatEntityAndRelatedMapsToMutate.flatViewMaps,
+      }),
     ).toMatchObject(mockView);
 
     expect(
-      flatEntityAndRelatedMapsToMutate.flatObjectMetadataMaps.byId[
-        objectMetadataId
-      ],
+      findFlatEntityByIdInFlatEntityMaps({
+        flatEntityId: objectMetadataId,
+        flatEntityMaps: flatEntityAndRelatedMapsToMutate.flatObjectMetadataMaps,
+      }),
     ).toMatchObject<Partial<FlatObjectMetadata>>({
       viewIds: [mockView.id],
     });
 
     expect(
-      flatEntityAndRelatedMapsToMutate.flatFieldMetadataMaps.byId[
-        mockFieldMEtadata.id
-      ],
+      findFlatEntityByIdInFlatEntityMaps({
+        flatEntityId: mockFieldMetadata.id,
+        flatEntityMaps: flatEntityAndRelatedMapsToMutate.flatFieldMetadataMaps,
+      }),
     ).toMatchObject<Partial<FlatFieldMetadata>>({
       calendarViewIds: [mockView.id],
     });

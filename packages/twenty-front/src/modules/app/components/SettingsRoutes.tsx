@@ -105,12 +105,12 @@ const SettingsDevelopersApiKeysNew = lazy(() =>
   })),
 );
 
-const SettingsServerlessFunctionDetail = lazy(() =>
-  import(
-    '~/pages/settings/serverless-functions/SettingsServerlessFunctionDetail'
-  ).then((module) => ({
-    default: module.SettingsServerlessFunctionDetail,
-  })),
+const SettingsLogicFunctionDetail = lazy(() =>
+  import('~/pages/settings/logic-functions/SettingsLogicFunctionDetail').then(
+    (module) => ({
+      default: module.SettingsLogicFunctionDetail,
+    }),
+  ),
 );
 
 const SettingsWorkspace = lazy(() =>
@@ -159,15 +159,43 @@ const SettingsApplicationDetails = lazy(() =>
   ),
 );
 
+const SettingsAvailableApplicationDetails = lazy(() =>
+  import(
+    '~/pages/settings/applications/SettingsAvailableApplicationDetails'
+  ).then((module) => ({
+    default: module.SettingsAvailableApplicationDetails,
+  })),
+);
+
 const SettingsAgentForm = lazy(() =>
   import('~/pages/settings/ai/SettingsAgentForm').then((module) => ({
     default: module.SettingsAgentForm,
   })),
 );
 
+const SettingsAgentTurnDetail = lazy(() =>
+  import('~/pages/settings/ai/SettingsAgentTurnDetail').then((module) => ({
+    default: module.SettingsAgentTurnDetail,
+  })),
+);
+
+const SettingsSkillForm = lazy(() =>
+  import('~/pages/settings/ai/SettingsSkillForm').then((module) => ({
+    default: module.SettingsSkillForm,
+  })),
+);
+
 const SettingsWorkspaceMembers = lazy(() =>
-  import('~/pages/settings/SettingsWorkspaceMembers').then((module) => ({
-    default: module.SettingsWorkspaceMembers,
+  import('~/pages/settings/members/SettingsWorkspaceMembers').then(
+    (module) => ({
+      default: module.SettingsWorkspaceMembers,
+    }),
+  ),
+);
+
+const SettingsWorkspaceMember = lazy(() =>
+  import('~/pages/settings/members/SettingsWorkspaceMember').then((module) => ({
+    default: module.SettingsWorkspaceMember,
   })),
 );
 
@@ -203,14 +231,6 @@ const SettingsBilling = lazy(() =>
   import('~/pages/settings/SettingsBilling').then((module) => ({
     default: module.SettingsBilling,
   })),
-);
-
-const SettingsIntegrations = lazy(() =>
-  import('~/pages/settings/integrations/SettingsIntegrations').then(
-    (module) => ({
-      default: module.SettingsIntegrations,
-    }),
-  ),
 );
 
 const SettingsObjects = lazy(() =>
@@ -280,6 +300,14 @@ const SettingsSecurityApprovedAccessDomain = lazy(() =>
   ),
 );
 
+const SettingsEventLogs = lazy(() =>
+  import('~/pages/settings/security/event-logs/SettingsEventLogs').then(
+    (module) => ({
+      default: module.SettingsEventLogs,
+    }),
+  ),
+);
+
 const SettingsNewEmailingDomain = lazy(() =>
   import('~/pages/settings/emailing-domains/SettingsNewEmailingDomain').then(
     (module) => ({
@@ -326,9 +354,9 @@ const SettingsAdminConfigVariableDetails = lazy(() =>
   })),
 );
 
-const SettingsReleases = lazy(() =>
-  import('~/pages/settings/releases/SettingsReleases').then((module) => ({
-    default: module.SettingsReleases,
+const SettingsUpdates = lazy(() =>
+  import('~/pages/settings/updates/SettingsUpdates').then((module) => ({
+    default: module.SettingsUpdates,
   })),
 );
 
@@ -422,6 +450,22 @@ export const SettingsRoutes = ({ isAdminPageEnabled }: SettingsRoutesProps) => (
           path={SettingsPath.AIAgentDetail}
           element={<SettingsAgentForm mode="edit" />}
         />
+        <Route
+          path={SettingsPath.AIAgentTurnDetail}
+          element={<SettingsAgentTurnDetail />}
+        />
+        <Route
+          path={SettingsPath.AINewSkill}
+          element={<SettingsSkillForm mode="create" />}
+        />
+        <Route
+          path={SettingsPath.AISkillDetail}
+          element={<SettingsSkillForm mode="edit" />}
+        />
+        <Route
+          path={SettingsPath.LogicFunctionDetail}
+          element={<SettingsLogicFunctionDetail />}
+        />
         <Route path={SettingsPath.Billing} element={<SettingsBilling />} />
         <Route path={SettingsPath.Domain} element={<SettingsDomain />} />
         <Route
@@ -447,6 +491,10 @@ export const SettingsRoutes = ({ isAdminPageEnabled }: SettingsRoutesProps) => (
         <Route
           path={SettingsPath.WorkspaceMembersPage}
           element={<SettingsWorkspaceMembers />}
+        />
+        <Route
+          path={SettingsPath.WorkspaceMemberPage}
+          element={<SettingsWorkspaceMember />}
         />
       </Route>
       <Route
@@ -532,10 +580,6 @@ export const SettingsRoutes = ({ isAdminPageEnabled }: SettingsRoutesProps) => (
           path={SettingsPath.WebhookDetail}
           element={<SettingsDevelopersWebhookDetail />}
         />
-        <Route
-          path={SettingsPath.Integrations}
-          element={<SettingsIntegrations />}
-        />
       </Route>
 
       <Route
@@ -554,8 +598,12 @@ export const SettingsRoutes = ({ isAdminPageEnabled }: SettingsRoutesProps) => (
           element={<SettingsApplicationDetails />}
         />
         <Route
-          path={SettingsPath.ApplicationServerlessFunctionDetail}
-          element={<SettingsServerlessFunctionDetail />}
+          path={SettingsPath.AvailableApplicationDetail}
+          element={<SettingsAvailableApplicationDetails />}
+        />
+        <Route
+          path={SettingsPath.ApplicationLogicFunctionDetail}
+          element={<SettingsLogicFunctionDetail />}
         />
       </Route>
 
@@ -575,6 +623,7 @@ export const SettingsRoutes = ({ isAdminPageEnabled }: SettingsRoutesProps) => (
           path={SettingsPath.NewApprovedAccessDomain}
           element={<SettingsSecurityApprovedAccessDomain />}
         />
+        <Route path={SettingsPath.EventLogs} element={<SettingsEventLogs />} />
       </Route>
 
       {isAdminPageEnabled && (
@@ -603,7 +652,7 @@ export const SettingsRoutes = ({ isAdminPageEnabled }: SettingsRoutesProps) => (
           />
         }
       >
-        <Route path={SettingsPath.Releases} element={<SettingsReleases />} />
+        <Route path={SettingsPath.Updates} element={<SettingsUpdates />} />
       </Route>
     </Routes>
   </Suspense>

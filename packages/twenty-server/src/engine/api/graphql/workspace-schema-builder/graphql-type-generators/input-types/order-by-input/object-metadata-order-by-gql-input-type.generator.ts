@@ -1,13 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { GraphQLInputObjectType } from 'graphql';
+import { pascalCase } from 'twenty-shared/utils';
 
 import { GqlInputTypeDefinitionKind } from 'src/engine/api/graphql/workspace-schema-builder/enums/gql-input-type-definition-kind.enum';
 import { ObjectMetadataOrderByBaseGenerator } from 'src/engine/api/graphql/workspace-schema-builder/graphql-type-generators/input-types/order-by-input/object-metadata-order-by-base.generator';
 import { GqlTypesStorage } from 'src/engine/api/graphql/workspace-schema-builder/storages/gql-types.storage';
+import { type SchemaGenerationContext } from 'src/engine/api/graphql/workspace-schema-builder/types/schema-generation-context.type';
 import { computeObjectMetadataInputTypeKey } from 'src/engine/api/graphql/workspace-schema-builder/utils/compute-stored-gql-type-key-utils/compute-object-metadata-input-type.util';
-import { ObjectMetadataEntity } from 'src/engine/metadata-modules/object-metadata/object-metadata.entity';
-import { pascalCase } from 'src/utils/pascal-case';
+import { type FlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata.type';
+import { type FlatObjectMetadata } from 'src/engine/metadata-modules/flat-object-metadata/types/flat-object-metadata.type';
 
 @Injectable()
 export class ObjectMetadataOrderByGqlInputTypeGenerator {
@@ -20,22 +22,27 @@ export class ObjectMetadataOrderByGqlInputTypeGenerator {
   ) {}
 
   public buildAndStore({
-    objectMetadata,
+    flatObjectMetadata,
+    fields,
+    context,
   }: {
-    objectMetadata: ObjectMetadataEntity;
+    flatObjectMetadata: FlatObjectMetadata;
+    fields: FlatFieldMetadata[];
+    context: SchemaGenerationContext;
   }) {
     const inputType = new GraphQLInputObjectType({
-      name: `${pascalCase(objectMetadata.nameSingular)}${GqlInputTypeDefinitionKind.OrderBy.toString()}Input`,
-      description: objectMetadata.description,
+      name: `${pascalCase(flatObjectMetadata.nameSingular)}${GqlInputTypeDefinitionKind.OrderBy.toString()}Input`,
+      description: flatObjectMetadata.description,
       fields: () =>
         this.objectMetadataOrderByBaseGenerator.generateFields({
-          objectMetadata,
+          fields,
           logger: this.logger,
+          context,
         }),
     }) as GraphQLInputObjectType;
 
     const key = computeObjectMetadataInputTypeKey(
-      objectMetadata.nameSingular,
+      flatObjectMetadata.nameSingular,
       GqlInputTypeDefinitionKind.OrderBy,
     );
 

@@ -1,18 +1,18 @@
-import { type BarChartDataItem } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarChartDataItem';
-import { BarChartLayout } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarChartLayout';
-import { calculateMaxTickLabelLength } from '@/page-layout/widgets/graph/graphWidgetBarChart/utils/calculateMaxTickLabelLength';
-import { calculateWidthPerTick } from '@/page-layout/widgets/graph/graphWidgetBarChart/utils/calculateWidthPerTick';
+import { BAR_CHART_CONSTANTS } from '@/page-layout/widgets/graph/graphWidgetBarChart/constants/BarChartConstants';
+import { type BarChartDatum } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarChartDatum';
 import { computeBarChartCategoryTickValues } from '@/page-layout/widgets/graph/graphWidgetBarChart/utils/computeBarChartCategoryTickValues';
 import { computeBarChartValueTickCount } from '@/page-layout/widgets/graph/graphWidgetBarChart/utils/computeBarChartValueTickCount';
-import { getBarChartMargins } from '@/page-layout/widgets/graph/graphWidgetBarChart/utils/getBarChartMargins';
-
-const MAX_LEFT_AXIS_LABEL_LENGTH = 10;
+import { type ChartMargins } from '@/page-layout/widgets/graph/types/ChartMargins';
+import { computeMaxLabelLengthForMargin } from '@/page-layout/widgets/graph/utils/computeMaxLabelLengthForMargin';
+import { getTickRotationConfig } from '@/page-layout/widgets/graph/utils/getTickRotationConfig';
+import { BarChartLayout } from '~/generated/graphql';
 
 export type BarChartTickConfig = {
   categoryTickValues: (string | number)[];
   numberOfValueTicks: number;
   maxBottomAxisTickLabelLength: number;
   maxLeftAxisTickLabelLength: number;
+  bottomAxisTickRotation: number;
 };
 
 export const getBarChartTickConfig = ({
@@ -20,61 +20,69 @@ export const getBarChartTickConfig = ({
   height,
   data,
   indexBy,
-  xAxisLabel,
-  yAxisLabel,
   axisFontSize,
   layout,
+  margins,
 }: {
   width: number;
   height: number;
-  data: BarChartDataItem[];
+  data: BarChartDatum[];
   indexBy: string;
-  xAxisLabel?: string;
-  yAxisLabel?: string;
   axisFontSize: number;
   layout: BarChartLayout;
+  margins: ChartMargins;
 }): BarChartTickConfig => {
+  const clampValueTickCount = (tickCount: number) =>
+    Math.min(
+      BAR_CHART_CONSTANTS.MAXIMUM_VALUE_TICK_COUNT,
+      Math.max(BAR_CHART_CONSTANTS.MINIMUM_VALUE_TICK_COUNT, tickCount),
+    );
+
   const categoryTickValues = computeBarChartCategoryTickValues({
     axisSize: layout === BarChartLayout.VERTICAL ? width : height,
     axisFontSize,
     data,
     indexBy,
-    xAxisLabel,
-    yAxisLabel,
+    margins,
     layout,
   });
-
-  const margins = getBarChartMargins({ xAxisLabel, yAxisLabel, layout });
 
   const availableWidth = width - (margins.left + margins.right);
   const availableHeight = height - (margins.top + margins.bottom);
 
-  const numberOfValueTicks = computeBarChartValueTickCount({
-    axisSize:
-      layout === BarChartLayout.VERTICAL ? availableHeight : availableWidth,
+  const numberOfValueTicks = clampValueTickCount(
+    computeBarChartValueTickCount({
+      axisSize:
+        layout === BarChartLayout.VERTICAL ? availableHeight : availableWidth,
+      axisFontSize,
+      layout,
+    }),
+  );
+
+  const bottomTickCount =
+    layout === BarChartLayout.VERTICAL
+      ? categoryTickValues.length
+      : numberOfValueTicks;
+  const widthPerBottomTick =
+    bottomTickCount > 0 && availableWidth > 0
+      ? availableWidth / bottomTickCount
+      : 0;
+
+  const tickRotationConfig = getTickRotationConfig({
+    widthPerTick: widthPerBottomTick,
     axisFontSize,
-    layout,
   });
 
-  const widthPerTick = calculateWidthPerTick({
-    layout,
-    availableWidth,
-    categoryTickCount: categoryTickValues.length,
-    valueTickCount: numberOfValueTicks,
-  });
-
-  const maxBottomAxisTickLabelLength = calculateMaxTickLabelLength({
-    widthPerTick,
+  const maxLeftAxisTickLabelLength = computeMaxLabelLengthForMargin({
+    marginSize: margins.left,
     axisFontSize,
   });
-
-  // TODO: Make this dynamic based on the data
-  const maxLeftAxisTickLabelLength = MAX_LEFT_AXIS_LABEL_LENGTH;
 
   return {
     categoryTickValues,
     numberOfValueTicks,
-    maxBottomAxisTickLabelLength,
+    maxBottomAxisTickLabelLength: tickRotationConfig.maxLabelLength,
     maxLeftAxisTickLabelLength,
+    bottomAxisTickRotation: tickRotationConfig.tickRotation,
   };
 };

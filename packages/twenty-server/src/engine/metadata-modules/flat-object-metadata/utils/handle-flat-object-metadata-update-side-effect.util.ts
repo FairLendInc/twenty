@@ -6,12 +6,14 @@ import { type FlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-m
 import { type FlatIndexMetadata } from 'src/engine/metadata-modules/flat-index-metadata/types/flat-index-metadata.type';
 import { type FlatObjectMetadata } from 'src/engine/metadata-modules/flat-object-metadata/types/flat-object-metadata.type';
 import { recomputeIndexAfterFlatObjectMetadataSingularNameUpdate } from 'src/engine/metadata-modules/flat-object-metadata/utils/recompute-index-after-flat-object-metadata-singular-name-update.util';
+import { recomputeSearchVectorFieldAfterLabelIdentifierUpdate } from 'src/engine/metadata-modules/flat-object-metadata/utils/recompute-search-vector-field-after-label-identifier-update.util';
 import { recomputeViewFieldIdentifierAfterFlatObjectIdentifierUpdate } from 'src/engine/metadata-modules/flat-object-metadata/utils/recompute-view-field-identifier-after-flat-object-identifier-update.util';
 import { renameRelatedMorphFieldOnObjectNamesUpdate } from 'src/engine/metadata-modules/flat-object-metadata/utils/rename-related-morph-field-on-object-names-update.util';
 import { type FlatViewField } from 'src/engine/metadata-modules/flat-view-field/types/flat-view-field.type';
 
 export type FlatObjectMetadataUpdateSideEffects = {
   otherObjectFlatFieldMetadatasToUpdate: FlatFieldMetadata[];
+  sameObjectFlatFieldMetadatasToUpdate: FlatFieldMetadata[];
   flatViewFieldsToUpdate: FlatViewField[];
   flatViewFieldsToCreate: FlatViewField[];
   flatIndexMetadatasToUpdate: FlatIndexMetadata[];
@@ -24,6 +26,7 @@ type HandleFlatObjectMetadataUpdateSideEffectArgs = FromTo<
   Pick<
     AllFlatEntityMaps,
     | 'flatFieldMetadataMaps'
+    | 'flatObjectMetadataMaps'
     | 'flatViewFieldMaps'
     | 'flatIndexMaps'
     | 'flatViewMaps'
@@ -32,20 +35,26 @@ type HandleFlatObjectMetadataUpdateSideEffectArgs = FromTo<
 export const handleFlatObjectMetadataUpdateSideEffect = ({
   flatIndexMaps,
   flatFieldMetadataMaps,
+  flatObjectMetadataMaps,
   flatViewFieldMaps,
   flatViewMaps,
   fromFlatObjectMetadata,
   toFlatObjectMetadata,
 }: HandleFlatObjectMetadataUpdateSideEffectArgs): FlatObjectMetadataUpdateSideEffects => {
-  const otherObjectFlatFieldMetadatasToUpdate =
+  const { morphRelatedFlatIndexesToUpdate, morphFlatFieldMetadatasToUpdate } =
     fromFlatObjectMetadata.nameSingular !== toFlatObjectMetadata.nameSingular ||
     fromFlatObjectMetadata.namePlural !== toFlatObjectMetadata.namePlural
       ? renameRelatedMorphFieldOnObjectNamesUpdate({
           flatFieldMetadataMaps,
           fromFlatObjectMetadata,
           toFlatObjectMetadata,
+          flatObjectMetadataMaps,
+          flatIndexMaps,
         })
-      : [];
+      : {
+          morphRelatedFlatIndexesToUpdate: [],
+          morphFlatFieldMetadatasToUpdate: [],
+        };
 
   const flatIndexMetadatasToUpdate =
     fromFlatObjectMetadata.nameSingular !== toFlatObjectMetadata.nameSingular
@@ -66,6 +75,7 @@ export const handleFlatObjectMetadataUpdateSideEffect = ({
           existingFlatObjectMetadata: fromFlatObjectMetadata,
           flatViewFieldMaps,
           flatViewMaps,
+          flatFieldMetadataMaps,
           updatedLabelIdentifierFieldMetadataId:
             toFlatObjectMetadata.labelIdentifierFieldMetadataId,
         })
@@ -74,10 +84,35 @@ export const handleFlatObjectMetadataUpdateSideEffect = ({
           flatViewFieldsToUpdate: [],
         };
 
+  const sameObjectFlatFieldMetadatasToUpdate: FlatFieldMetadata[] = [];
+
+  if (
+    toFlatObjectMetadata.isSearchable &&
+    isDefined(toFlatObjectMetadata.labelIdentifierFieldMetadataId) &&
+    fromFlatObjectMetadata.labelIdentifierFieldMetadataId !==
+      toFlatObjectMetadata.labelIdentifierFieldMetadataId
+  ) {
+    const updatedSearchVectorField =
+      recomputeSearchVectorFieldAfterLabelIdentifierUpdate({
+        existingFlatObjectMetadata: fromFlatObjectMetadata,
+        flatFieldMetadataMaps,
+        updatedLabelIdentifierFieldMetadataId:
+          toFlatObjectMetadata.labelIdentifierFieldMetadataId,
+      });
+
+    if (isDefined(updatedSearchVectorField)) {
+      sameObjectFlatFieldMetadatasToUpdate.push(updatedSearchVectorField);
+    }
+  }
+
   return {
-    flatIndexMetadatasToUpdate,
+    flatIndexMetadatasToUpdate: [
+      ...morphRelatedFlatIndexesToUpdate,
+      ...flatIndexMetadatasToUpdate,
+    ],
     flatViewFieldsToCreate,
     flatViewFieldsToUpdate,
-    otherObjectFlatFieldMetadatasToUpdate,
+    otherObjectFlatFieldMetadatasToUpdate: morphFlatFieldMetadatasToUpdate,
+    sameObjectFlatFieldMetadatasToUpdate,
   };
 };

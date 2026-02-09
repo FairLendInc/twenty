@@ -4,7 +4,7 @@ import { useApolloCoreClient } from '@/object-metadata/hooks/useApolloCoreClient
 import { type ObjectMetadataItemIdentifier } from '@/object-metadata/types/ObjectMetadataItemIdentifier';
 import { getRecordFromRecordNode } from '@/object-record/cache/utils/getRecordFromRecordNode';
 import { useGenerateDepthRecordGqlFieldsFromObject } from '@/object-record/graphql/record-gql-fields/hooks/useGenerateDepthRecordGqlFieldsFromObject';
-import { type RecordGqlOperationGqlRecordFields } from '@/object-record/graphql/types/RecordGqlOperationGqlRecordFields';
+import { type RecordGqlOperationGqlRecordFields } from 'twenty-shared/types';
 import { useFindOneRecordQuery } from '@/object-record/hooks/useFindOneRecordQuery';
 import { type ObjectRecord } from '@/object-record/types/ObjectRecord';
 
@@ -39,8 +39,12 @@ export const useLazyFindOneRecord = <T extends ObjectRecord = ObjectRecord>({
     withSoftDeleted,
   });
 
-  const [findOneRecord, { loading, error, data, called }] =
-    useLazyQuery(findOneRecordQuery);
+  const [findOneRecord, { loading, error, data, called }] = useLazyQuery(
+    findOneRecordQuery,
+    {
+      client: apolloCoreClient,
+    },
+  );
 
   return {
     findOneRecord: async ({
@@ -50,7 +54,6 @@ export const useLazyFindOneRecord = <T extends ObjectRecord = ObjectRecord>({
       await findOneRecord({
         variables: { objectRecordId },
         fetchPolicy,
-        client: apolloCoreClient,
         onCompleted: (data) => {
           const record = getRecordFromRecordNode<T>({
             recordNode: data[objectNameSingular],

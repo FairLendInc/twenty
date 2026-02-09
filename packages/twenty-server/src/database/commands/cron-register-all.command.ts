@@ -2,9 +2,10 @@ import { Logger } from '@nestjs/common';
 
 import { Command, CommandRunner } from 'nest-commander';
 
+import { EventLogCleanupCronCommand } from 'src/engine/core-modules/event-logs/cleanup/commands/event-log-cleanup.cron.command';
 import { CheckPublicDomainsValidRecordsCronCommand } from 'src/engine/core-modules/public-domain/crons/commands/check-public-domains-valid-records.cron.command';
 import { CheckCustomDomainValidRecordsCronCommand } from 'src/engine/core-modules/workspace/crons/commands/check-custom-domain-valid-records.cron.command';
-import { CronTriggerCronCommand } from 'src/engine/metadata-modules/cron-trigger/crons/commands/cron-trigger.cron.command';
+import { CronTriggerCronCommand } from 'src/engine/core-modules/logic-function/logic-function-trigger/triggers/cron/cron-trigger.cron.command';
 import { TrashCleanupCronCommand } from 'src/engine/trash-cleanup/commands/trash-cleanup.cron.command';
 import { CleanOnboardingWorkspacesCronCommand } from 'src/engine/workspace-manager/workspace-cleaner/commands/clean-onboarding-workspaces.cron.command';
 import { CleanSuspendedWorkspacesCronCommand } from 'src/engine/workspace-manager/workspace-cleaner/commands/clean-suspended-workspaces.cron.command';
@@ -38,16 +39,19 @@ export class CronRegisterAllCommand extends CommandRunner {
     private readonly calendarEventsImportCronCommand: CalendarEventsImportCronCommand,
     private readonly calendarOngoingStaleCronCommand: CalendarOngoingStaleCronCommand,
     private readonly calendarRelaunchFailedCalendarChannelsCronCommand: CalendarRelaunchFailedCalendarChannelsCronCommand,
+
     private readonly workflowCronTriggerCronCommand: WorkflowCronTriggerCronCommand,
-    private readonly checkCustomDomainValidRecordsCronCommand: CheckCustomDomainValidRecordsCronCommand,
-    private readonly checkPublicDomainsValidRecordsCronCommand: CheckPublicDomainsValidRecordsCronCommand,
     private readonly workflowRunEnqueueCronCommand: WorkflowRunEnqueueCronCommand,
     private readonly workflowHandleStaledRunsCronCommand: WorkflowHandleStaledRunsCronCommand,
     private readonly workflowCleanWorkflowRunsCronCommand: WorkflowCleanWorkflowRunsCronCommand,
+
+    private readonly checkCustomDomainValidRecordsCronCommand: CheckCustomDomainValidRecordsCronCommand,
+    private readonly checkPublicDomainsValidRecordsCronCommand: CheckPublicDomainsValidRecordsCronCommand,
     private readonly cronTriggerCronCommand: CronTriggerCronCommand,
     private readonly cleanSuspendedWorkspacesCronCommand: CleanSuspendedWorkspacesCronCommand,
     private readonly cleanOnboardingWorkspacesCronCommand: CleanOnboardingWorkspacesCronCommand,
     private readonly trashCleanupCronCommand: TrashCleanupCronCommand,
+    private readonly eventLogCleanupCronCommand: EventLogCleanupCronCommand,
   ) {
     super();
   }
@@ -127,6 +131,10 @@ export class CronRegisterAllCommand extends CommandRunner {
       {
         name: 'TrashCleanup',
         command: this.trashCleanupCronCommand,
+      },
+      {
+        name: 'EventLogCleanup',
+        command: this.eventLogCleanupCronCommand,
       },
     ];
 

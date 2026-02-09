@@ -1,19 +1,20 @@
 import {
-  FieldMetadataType,
-  type RestrictedFieldsPermissions,
   type FieldMetadataSettings,
+  FieldMetadataType,
   NumberDataType,
+  type RestrictedFieldsPermissions,
 } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 import { z } from 'zod';
 
 import { RelationType } from 'src/engine/metadata-modules/field-metadata/interfaces/relation-type.interface';
 
-import { type FieldMetadataEntity } from 'src/engine/metadata-modules/field-metadata/field-metadata.entity';
-import { type ObjectMetadataEntity } from 'src/engine/metadata-modules/object-metadata/object-metadata.entity';
+import { filesFieldSchema } from 'src/engine/api/common/common-args-processors/data-arg-processor/validator-utils/validate-files-field-or-throw.util';
+import { type ObjectMetadataForToolSchema } from 'src/engine/core-modules/record-crud/types/object-metadata-for-tool-schema.type';
+import { type FlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata.type';
 import { isFieldMetadataEntityOfType } from 'src/engine/utils/is-field-metadata-of-type.util';
 
-const isFieldAvailable = (field: FieldMetadataEntity, forResponse: boolean) => {
+const isFieldAvailable = (field: FlatFieldMetadata, forResponse: boolean) => {
   if (forResponse) {
     return true;
   }
@@ -28,10 +29,10 @@ const isFieldAvailable = (field: FieldMetadataEntity, forResponse: boolean) => {
   }
 };
 
-const getFieldZodType = (field: FieldMetadataEntity): z.ZodTypeAny => {
+const getFieldZodType = (field: FlatFieldMetadata): z.ZodTypeAny => {
   switch (field.type) {
     case FieldMetadataType.UUID:
-      return z.string().uuid();
+      return z.string().uuidv4();
 
     case FieldMetadataType.TEXT:
     case FieldMetadataType.RICH_TEXT:
@@ -73,7 +74,7 @@ const getFieldZodType = (field: FieldMetadataEntity): z.ZodTypeAny => {
 };
 
 export const generateRecordPropertiesZodSchema = (
-  objectMetadata: ObjectMetadataEntity,
+  objectMetadata: ObjectMetadataForToolSchema,
   forResponse = false,
   restrictedFields?: RestrictedFieldsPermissions,
 ): z.ZodObject<Record<string, z.ZodTypeAny>> => {
@@ -95,7 +96,11 @@ export const generateRecordPropertiesZodSchema = (
       isFieldMetadataEntityOfType(field, FieldMetadataType.RELATION) &&
       field.settings?.relationType === RelationType.MANY_TO_ONE
     ) {
-      shape[`${field.name}Id`] = z.string().uuid();
+      const uuidSchema = z.uuidv4();
+
+      shape[`${field.name}Id`] = field.isNullable
+        ? uuidSchema.optional()
+        : uuidSchema;
 
       return;
     }
@@ -239,6 +244,10 @@ export const generateRecordPropertiesZodSchema = (
         });
         break;
 
+      case FieldMetadataType.FILES:
+        fieldSchema = filesFieldSchema;
+        break;
+
       default:
         fieldSchema = getFieldZodType(field);
         break;
@@ -246,6 +255,10 @@ export const generateRecordPropertiesZodSchema = (
 
     if (field.description) {
       fieldSchema = fieldSchema.describe(field.description);
+    }
+
+    if (field.isNullable) {
+      fieldSchema = fieldSchema.optional();
     }
 
     shape[field.name] = fieldSchema;

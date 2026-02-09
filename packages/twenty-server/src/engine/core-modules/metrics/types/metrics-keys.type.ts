@@ -20,7 +20,7 @@ export enum MetricsKeys {
   WorkflowRunCompleted = 'workflow-run/completed',
   WorkflowRunFailed = 'workflow-run/failed',
   WorkflowRunStopped = 'workflow-run/stopped',
-  WorkflowRunFailedThrottled = 'workflow-run/failed/throttled',
+  WorkflowRunThrottled = 'workflow-run/throttled',
   WorkflowRunFailedToEnqueue = 'workflow-run/failed/to-enqueue',
   AIToolExecutionFailed = 'ai-tool-execution/failed',
   AIToolExecutionSucceeded = 'ai-tool-execution/succeeded',
@@ -30,4 +30,7 @@ export enum MetricsKeys {
   JobWebhookCallCompleted = 'job/webhook-call-completed',
   SignUpSuccess = 'sign-up/success',
   CommonApiQueryRateLimited = 'common-api-query/rate-limited',
+  JobCompleted = 'job/completed',
+  JobFailed = 'job/failed',
+  JobWaiting = 'job/waiting',
 }

@@ -15,7 +15,6 @@ import { IconButton } from 'twenty-ui/input';
 import { isPageLayoutTabDraggingComponentState } from '@/page-layout/states/isPageLayoutTabDraggingComponentState';
 import { useCloseDropdown } from '@/ui/layout/dropdown/hooks/useCloseDropdown';
 import { useOpenDropdown } from '@/ui/layout/dropdown/hooks/useOpenDropdown';
-import { TabListFromUrlOptionalEffect } from '@/ui/layout/tab-list/components/TabListFromUrlOptionalEffect';
 import { TabListHiddenMeasurements } from '@/ui/layout/tab-list/components/TabListHiddenMeasurements';
 import { TAB_LIST_GAP } from '@/ui/layout/tab-list/constants/TabListGap';
 import { useTabListMeasurements } from '@/ui/layout/tab-list/hooks/useTabListMeasurements';
@@ -38,10 +37,13 @@ import { isPageLayoutInEditModeComponentState } from '@/page-layout/states/isPag
 import { pageLayoutTabListCurrentDragDroppableIdComponentState } from '@/page-layout/states/pageLayoutTabListCurrentDragDroppableIdComponentState';
 import { pageLayoutTabSettingsOpenTabIdComponentState } from '@/page-layout/states/pageLayoutTabSettingsOpenTabIdComponentState';
 import { type PageLayoutTab } from '@/page-layout/types/PageLayoutTab';
+import { shouldEnableTabEditingFeatures } from '@/page-layout/utils/shouldEnableTabEditingFeatures';
+import { TabListFromUrlOptionalEffect } from '@/ui/layout/tab-list/components/TabListFromUrlOptionalEffect';
 import { type SingleTabProps } from '@/ui/layout/tab-list/types/SingleTabProps';
 import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
 import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
 import { isDefined } from 'twenty-shared/utils';
+import { type PageLayoutType } from '~/generated/graphql';
 
 const StyledContainer = styled.div`
   box-sizing: border-box;
@@ -74,12 +76,14 @@ type PageLayoutTabListProps = Omit<TabListProps, 'tabs'> & {
   isReorderEnabled: boolean;
   onAddTab?: () => void;
   onReorder?: (result: DropResult, provided: ResponderProvided) => boolean;
+  behaveAsLinks: boolean;
+  pageLayoutType: PageLayoutType;
 };
 
 export const PageLayoutTabList = ({
   tabs,
   loading,
-  behaveAsLinks = true,
+  behaveAsLinks,
   isInRightDrawer,
   className,
   componentInstanceId,
@@ -87,6 +91,7 @@ export const PageLayoutTabList = ({
   onAddTab,
   isReorderEnabled,
   onReorder,
+  pageLayoutType,
 }: PageLayoutTabListProps) => {
   const { getIcon } = useIcons();
 
@@ -203,6 +208,10 @@ export const PageLayoutTabList = ({
   const pageLayoutId = useAvailableComponentInstanceIdOrThrow(
     PageLayoutComponentInstanceContext,
   );
+  const tabSettingsOpenTabId = useRecoilComponentValue(
+    pageLayoutTabSettingsOpenTabIdComponentState,
+    pageLayoutId,
+  );
   const setTabSettingsOpenTabId = useSetRecoilComponentState(
     pageLayoutTabSettingsOpenTabIdComponentState,
     pageLayoutId,
@@ -214,34 +223,64 @@ export const PageLayoutTabList = ({
       setTabSettingsOpenTabId(tabId);
       navigatePageLayoutCommandMenu({
         commandMenuPage: CommandMenuPages.PageLayoutTabSettings,
+        resetNavigationStack: true,
       });
     },
     [setTabSettingsOpenTabId, navigatePageLayoutCommandMenu],
   );
 
+  const isTabSettingsOpen = isDefined(tabSettingsOpenTabId);
+
   const handleSelectTab = useCallback(
     (tabId: string) => {
-      if (isPageLayoutInEditMode && activeTabId === tabId) {
+      const shouldOpenSettings =
+        isPageLayoutInEditMode &&
+        shouldEnableTabEditingFeatures(pageLayoutType);
+
+      if (shouldOpenSettings && activeTabId === tabId) {
         openTabSettings(tabId);
         return;
       }
+
+      if (shouldOpenSettings && isTabSettingsOpen) {
+        openTabSettings(tabId);
+      }
+
       selectTab(tabId);
     },
-    [isPageLayoutInEditMode, activeTabId, openTabSettings, selectTab],
+    [
+      isPageLayoutInEditMode,
+      pageLayoutType,
+      activeTabId,
+      isTabSettingsOpen,
+      openTabSettings,
+      selectTab,
+    ],
   );
 
   const handleSelectTabFromDropdown = useCallback(
     (tabId: string) => {
-      if (isPageLayoutInEditMode && activeTabId === tabId) {
+      const shouldOpenSettings =
+        isPageLayoutInEditMode &&
+        shouldEnableTabEditingFeatures(pageLayoutType);
+
+      if (shouldOpenSettings && activeTabId === tabId) {
         openTabSettings(tabId);
         closeOverflowDropdown();
         return;
       }
+
+      if (shouldOpenSettings && isTabSettingsOpen) {
+        openTabSettings(tabId);
+      }
+
       selectTabFromDropdown(tabId);
     },
     [
       isPageLayoutInEditMode,
+      pageLayoutType,
       activeTabId,
+      isTabSettingsOpen,
       openTabSettings,
       closeOverflowDropdown,
       selectTabFromDropdown,
@@ -315,6 +354,7 @@ export const PageLayoutTabList = ({
                   onSelect={handleSelectTabFromDropdown}
                   visibleTabCount={visibleTabCount}
                   onClose={closeOverflowDropdown}
+                  pageLayoutType={pageLayoutType}
                 />
               )}
 

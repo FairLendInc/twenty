@@ -2,17 +2,50 @@ import { Injectable } from '@nestjs/common';
 
 import { msg } from '@lingui/core/macro';
 import { isDefined } from 'class-validator';
+import { FieldMetadataType } from 'twenty-shared/types';
 
 import { FieldMetadataExceptionCode } from 'src/engine/metadata-modules/field-metadata/field-metadata.exception';
+import { FlatEntityUpdate } from 'src/engine/metadata-modules/flat-entity/types/flat-entity-properties-updates.type';
 import { type FlatFieldMetadataTypeValidator } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata-type-validator.type';
 import { FlatFieldMetadataValidationError } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata-validation-error.type';
 import { validateEnumSelectFlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/validators/utils/validate-enum-flat-field-metadata.util';
+import { validateFilesFlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/validators/utils/validate-files-flat-field-metadata.util';
 import { validateMorphOrRelationFlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/validators/utils/validate-morph-or-relation-flat-field-metadata.util';
-import { FlatEntityValidationArgs } from 'src/engine/workspace-manager/workspace-migration-v2/workspace-migration-builder-v2/types/flat-entity-validation-args.type';
+import { validateMorphRelationFlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/validators/utils/validate-morph-relation-flat-field-metadata.util';
+import { FlatEntityValidationArgs } from 'src/engine/workspace-manager/workspace-migration/workspace-migration-builder/types/flat-entity-validation-args.type';
 
-const DEFAULT_NO_VALIDATION = async (): Promise<
-  FlatFieldMetadataValidationError[]
-> => [];
+const DEFAULT_NO_VALIDATION = (): FlatFieldMetadataValidationError[] => [];
+
+export type GenericValidateFlatFieldMetadataTypeSpecificitiesArgs =
+  FlatEntityValidationArgs<'fieldMetadata'> & {
+    update?: FlatEntityUpdate<'fieldMetadata'>;
+  };
+
+const rejectUserCreation = (
+  fieldType: FieldMetadataType,
+  message: string,
+  userFriendlyMessage: ReturnType<typeof msg>,
+) => {
+  return (
+    args: GenericValidateFlatFieldMetadataTypeSpecificitiesArgs,
+  ): FlatFieldMetadataValidationError[] => {
+    const isCreation = !isDefined(args.update);
+    const isCustomField = args.flatEntityToValidate.isCustom;
+
+    if (isCreation && isCustomField) {
+      return [
+        {
+          code: FieldMetadataExceptionCode.INVALID_FIELD_INPUT,
+          message,
+          value: fieldType,
+          userFriendlyMessage,
+        },
+      ];
+    }
+
+    return [];
+  };
+};
 
 @Injectable()
 export class FlatFieldMetadataTypeValidatorService {
@@ -28,33 +61,43 @@ export class FlatFieldMetadataTypeValidatorService {
       DATE: DEFAULT_NO_VALIDATION,
       DATE_TIME: DEFAULT_NO_VALIDATION,
       EMAILS: DEFAULT_NO_VALIDATION,
+      FILES: validateFilesFlatFieldMetadata,
       FULL_NAME: DEFAULT_NO_VALIDATION,
       LINKS: DEFAULT_NO_VALIDATION,
       IMAGE: DEFAULT_NO_VALIDATION,
       PDF: DEFAULT_NO_VALIDATION,
       NUMBER: DEFAULT_NO_VALIDATION,
-      NUMERIC: DEFAULT_NO_VALIDATION,
+      NUMERIC: rejectUserCreation(
+        FieldMetadataType.NUMERIC,
+        'Field type NUMERIC is not supported for field creation. Use NUMBER instead.',
+        msg`Field type NUMERIC is not supported. Use Number instead.`,
+      ),
       PHONES: DEFAULT_NO_VALIDATION,
-      POSITION: DEFAULT_NO_VALIDATION,
+      POSITION: rejectUserCreation(
+        FieldMetadataType.POSITION,
+        'Field type POSITION is a system type and cannot be created manually.',
+        msg`Field type POSITION is a system type and cannot be created manually.`,
+      ),
       RAW_JSON: DEFAULT_NO_VALIDATION,
       RICH_TEXT: DEFAULT_NO_VALIDATION,
       RICH_TEXT_V2: DEFAULT_NO_VALIDATION,
       TEXT: DEFAULT_NO_VALIDATION,
-      TS_VECTOR: DEFAULT_NO_VALIDATION,
+      TS_VECTOR: rejectUserCreation(
+        FieldMetadataType.TS_VECTOR,
+        'Field type TS_VECTOR is a system type and cannot be created manually.',
+        msg`Field type TS_VECTOR is a system type and cannot be created manually.`,
+      ),
       UUID: DEFAULT_NO_VALIDATION,
-
-      MORPH_RELATION: async (args) => {
-        return validateMorphOrRelationFlatFieldMetadata(args);
-      },
+      MORPH_RELATION: validateMorphRelationFlatFieldMetadata,
       MULTI_SELECT: validateEnumSelectFlatFieldMetadata,
       RATING: validateEnumSelectFlatFieldMetadata,
       RELATION: validateMorphOrRelationFlatFieldMetadata,
       SELECT: validateEnumSelectFlatFieldMetadata,
     };
 
-  public async validateFlatFieldMetadataTypeSpecificities(
-    args: FlatEntityValidationArgs<'fieldMetadata'>,
-  ): Promise<FlatFieldMetadataValidationError[]> {
+  public validateFlatFieldMetadataTypeSpecificities(
+    args: GenericValidateFlatFieldMetadataTypeSpecificitiesArgs,
+  ): FlatFieldMetadataValidationError[] {
     const { flatEntityToValidate } = args;
     const fieldType = flatEntityToValidate.type;
     const fieldMetadataTypeValidator =
@@ -71,7 +114,7 @@ export class FlatFieldMetadataTypeValidatorService {
       ];
     }
 
-    return await fieldMetadataTypeValidator(
+    return fieldMetadataTypeValidator(
       // @ts-expect-error TODO could be improved
       args,
     );

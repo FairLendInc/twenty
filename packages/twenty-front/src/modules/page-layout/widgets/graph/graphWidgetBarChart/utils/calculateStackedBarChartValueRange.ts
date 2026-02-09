@@ -1,9 +1,9 @@
-import { type BarChartDataItem } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarChartDataItem';
-import { calculateValueRangeFromValues } from '@/page-layout/widgets/graph/utils/calculateValueRangeFromValues';
 import { type ChartValueRange } from '@/page-layout/widgets/graph/types/ChartValueRange';
+import { calculateValueRangeFromValues } from '@/page-layout/widgets/graph/utils/calculateValueRangeFromValues';
+import { type BarChartDatum } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarChartDatum';
 
 export const calculateStackedBarChartValueRange = (
-  data: BarChartDataItem[],
+  data: BarChartDatum[],
   keys: string[],
 ): ChartValueRange => {
   const stackedValues: number[] = [];

@@ -75,7 +75,7 @@ export const RecordFieldList = ({
 
   const {
     inlineFieldMetadataItems,
-    inlineRelationFieldMetadataItems,
+    legacyActivityTargetFieldMetadataItems,
     boxedRelationFieldMetadataItems,
   } = useFieldListFieldMetadataItems({
     objectNameSingular,
@@ -90,12 +90,12 @@ export const RecordFieldList = ({
         instanceId,
       }}
     >
-      <PropertyBox>
+      <PropertyBox dataTestId="record-fields-list-container">
         {isPrefetchLoading ? (
           <PropertyBoxSkeletonLoader />
         ) : (
           <>
-            {inlineRelationFieldMetadataItems?.map(
+            {legacyActivityTargetFieldMetadataItems?.map(
               (fieldMetadataItem, index) => (
                 <FieldContext.Provider
                   key={objectRecordId + fieldMetadataItem.id}
@@ -180,7 +180,8 @@ export const RecordFieldList = ({
                   }),
                   onMouseEnter: () =>
                     handleMouseEnter(
-                      index + (inlineRelationFieldMetadataItems?.length ?? 0),
+                      index +
+                        (legacyActivityTargetFieldMetadataItems?.length ?? 0),
                     ),
                   anchorId: `${getRecordFieldInputInstanceId({
                     recordId: objectRecordId,

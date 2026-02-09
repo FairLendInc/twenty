@@ -5,7 +5,6 @@ type FieldMetadataTypesNotTestedForFilterInputValidation =
   | 'RICH_TEXT'
   | 'POSITION'
   | 'ACTOR'
-  | 'MORPH_RELATION'
   | 'NUMERIC'
   | 'RICH_TEXT_V2'
   | 'IMAGE'
@@ -14,8 +13,6 @@ type FieldMetadataTypesNotTestedForFilterInputValidation =
 type FieldMetadataTypesNotTestedForCreateInputValidation =
   | 'TS_VECTOR'
   | 'ACTOR'
-  | 'POSITION'
-  | 'MORPH_RELATION'
   | 'NUMERIC'
   | 'IMAGE'
   | 'PDF';

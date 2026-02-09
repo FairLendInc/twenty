@@ -4,33 +4,34 @@ import {
   useApolloClient,
 } from '@apollo/client';
 import { type MockedResponse } from '@apollo/client/testing';
-import type { Meta, StoryObj } from '@storybook/react';
-import { expect, within } from '@storybook/test';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { MemoryRouter } from 'react-router-dom';
+import { expect, within } from 'storybook/test';
 
 import { FIND_ONE_PAGE_LAYOUT } from '@/dashboards/graphql/queries/findOnePageLayout';
 import { ApolloCoreClientContext } from '@/object-metadata/contexts/ApolloCoreClientContext';
 import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
+import { generateGroupByAggregateQuery } from '@/object-record/record-aggregate/utils/generateGroupByAggregateQuery';
 import { PageLayoutRenderer } from '@/page-layout/components/PageLayoutRenderer';
-import { generateGroupByQuery } from '@/page-layout/widgets/graph/utils/generateGroupByQuery';
 import { LayoutRenderingProvider } from '@/ui/layout/contexts/LayoutRenderingContext';
-import {
-  GraphOrderBy,
-  GraphType,
-  WidgetType,
-} from '~/generated-metadata/graphql';
+import { GraphOrderBy, WidgetType } from '~/generated-metadata/graphql';
 import {
   AggregateOperations,
   AxisNameDisplay,
   type BarChartConfiguration,
+  BarChartLayout,
   PageLayoutType,
   type PageLayoutWidget,
+  WidgetConfigurationType,
 } from '~/generated/graphql';
 import { getJestMetadataAndApolloMocksWrapper } from '~/testing/jest/getJestMetadataAndApolloMocksWrapper';
 import { getMockFieldMetadataItemOrThrow } from '~/testing/utils/getMockFieldMetadataItemOrThrow';
 import { getMockObjectMetadataItemOrThrow } from '~/testing/utils/getMockObjectMetadataItemOrThrow';
 
 const mockPersonObjectMetadataItem = getMockObjectMetadataItemOrThrow('person');
+const mockDashboardObjectMetadataItem =
+  getMockObjectMetadataItemOrThrow('dashboard');
+
 const idField = getMockFieldMetadataItemOrThrow({
   objectMetadataItem: mockPersonObjectMetadataItem,
   fieldName: 'id',
@@ -58,7 +59,7 @@ const mixedGraphsPageLayoutMocks = {
   id: 'mixed-graphs-layout',
   name: 'Mixed Graph Dashboard',
   type: PageLayoutType.DASHBOARD,
-  objectMetadataId: mockPersonObjectMetadataItem.id,
+  objectMetadataId: mockDashboardObjectMetadataItem.id,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
   deletedAt: null,
@@ -89,14 +90,14 @@ const mixedGraphsPageLayoutMocks = {
           },
           configuration: {
             __typename: 'AggregateChartConfiguration',
-            graphType: GraphType.AGGREGATE,
+            configurationType: WidgetConfigurationType.AGGREGATE_CHART,
             aggregateOperation: AggregateOperations.COUNT,
             aggregateFieldMetadataId: idField.id,
           },
           createdAt: '2024-01-01T00:00:00Z',
           updatedAt: '2024-01-01T00:00:00Z',
           deletedAt: null,
-        } as PageLayoutWidget,
+        } satisfies PageLayoutWidget,
         {
           __typename: 'PageLayoutWidget',
           id: 'gauge-widget',
@@ -113,7 +114,7 @@ const mixedGraphsPageLayoutMocks = {
           },
           configuration: {
             __typename: 'GaugeChartConfiguration',
-            graphType: GraphType.GAUGE,
+            configurationType: WidgetConfigurationType.GAUGE_CHART,
             aggregateOperation: AggregateOperations.COUNT,
             aggregateFieldMetadataId: idField.id,
             displayDataLabel: false,
@@ -121,7 +122,7 @@ const mixedGraphsPageLayoutMocks = {
           createdAt: '2024-01-01T00:00:00Z',
           updatedAt: '2024-01-01T00:00:00Z',
           deletedAt: null,
-        } as PageLayoutWidget,
+        } satisfies PageLayoutWidget,
         {
           __typename: 'PageLayoutWidget',
           id: 'pie-widget',
@@ -138,7 +139,7 @@ const mixedGraphsPageLayoutMocks = {
           },
           configuration: {
             __typename: 'PieChartConfiguration',
-            graphType: GraphType.PIE,
+            configurationType: WidgetConfigurationType.PIE_CHART,
             aggregateOperation: AggregateOperations.COUNT,
             aggregateFieldMetadataId: idField.id,
             groupByFieldMetadataId: createdAtField.id,
@@ -147,7 +148,7 @@ const mixedGraphsPageLayoutMocks = {
           createdAt: '2024-01-01T00:00:00Z',
           updatedAt: '2024-01-01T00:00:00Z',
           deletedAt: null,
-        } as PageLayoutWidget,
+        } satisfies PageLayoutWidget,
         {
           __typename: 'PageLayoutWidget',
           id: 'bar-widget',
@@ -164,7 +165,8 @@ const mixedGraphsPageLayoutMocks = {
           },
           configuration: {
             __typename: 'BarChartConfiguration',
-            graphType: GraphType.VERTICAL_BAR,
+            configurationType: WidgetConfigurationType.BAR_CHART,
+            layout: BarChartLayout.VERTICAL,
             aggregateOperation: AggregateOperations.COUNT,
             aggregateFieldMetadataId: nameField.id,
             primaryAxisGroupByFieldMetadataId: createdAtField.id,
@@ -181,9 +183,9 @@ const mixedGraphsPageLayoutMocks = {
   ],
 };
 
-const barChartGroupByQuery = generateGroupByQuery({
+const barChartGroupByQuery = generateGroupByAggregateQuery({
   objectMetadataItem: mockPersonObjectMetadataItem,
-  aggregateOperations: ['totalCount'],
+  aggregateOperationGqlFields: ['totalCount'],
 });
 
 const graphqlMocks: MockedResponse[] = [

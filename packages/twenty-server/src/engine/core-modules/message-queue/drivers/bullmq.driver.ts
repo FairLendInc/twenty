@@ -1,4 +1,8 @@
-import { Logger, type OnModuleDestroy } from '@nestjs/common';
+import {
+  Logger,
+  type OnModuleDestroy,
+  type OnModuleInit,
+} from '@nestjs/common';
 
 import {
   type JobsOptions,
@@ -19,15 +23,19 @@ import { type MessageQueueJob } from 'src/engine/core-modules/message-queue/inte
 import { type MessageQueueWorkerOptions } from 'src/engine/core-modules/message-queue/interfaces/message-queue-worker-options.interface';
 
 import { QUEUE_RETENTION } from 'src/engine/core-modules/message-queue/constants/queue-retention.constants';
+import { MESSAGE_QUEUE_PRIORITY } from 'src/engine/core-modules/message-queue/message-queue-priority.constant';
 import { type MessageQueue } from 'src/engine/core-modules/message-queue/message-queue.constants';
 import { getJobKey } from 'src/engine/core-modules/message-queue/utils/get-job-key.util';
-import { MESSAGE_QUEUE_PRIORITY } from 'src/engine/core-modules/message-queue/message-queue-priority.constant';
+import { type MetricsService } from 'src/engine/core-modules/metrics/metrics.service';
+import { MetricsKeys } from 'src/engine/core-modules/metrics/types/metrics-keys.type';
 
 export type BullMQDriverOptions = QueueOptions;
 
 const V4_LENGTH = 36;
 
-export class BullMQDriver implements MessageQueueDriver, OnModuleDestroy {
+export class BullMQDriver
+  implements MessageQueueDriver, OnModuleDestroy, OnModuleInit
+{
   private logger = new Logger(BullMQDriver.name);
   private queueMap: Record<MessageQueue, Queue> = {} as Record<
     MessageQueue,
@@ -38,7 +46,31 @@ export class BullMQDriver implements MessageQueueDriver, OnModuleDestroy {
     Worker
   >;
 
-  constructor(private options: BullMQDriverOptions) {}
+  constructor(
+    private options: BullMQDriverOptions,
+    private metricsService: MetricsService,
+  ) {}
+
+  onModuleInit() {
+    this.metricsService.createObservableGauge(
+      'twenty_queue_jobs_waiting_total',
+      { description: 'Current number of jobs waiting in queue' },
+      async (observableResult) => {
+        for (const [queueName, queue] of Object.entries(this.queueMap)) {
+          try {
+            const waitingCount = await queue.count();
+
+            observableResult.observe(waitingCount, { queue: queueName });
+          } catch (error) {
+            this.logger.error(
+              `Failed to collect waiting jobs metrics for queue ${queueName}`,
+              error,
+            );
+          }
+        }
+      },
+    );
+  }
 
   register(queueName: MessageQueue): void {
     this.queueMap[queueName] = new Queue(queueName, this.options);
@@ -89,6 +121,30 @@ export class BullMQDriver implements MessageQueueDriver, OnModuleDestroy {
       },
       workerOptions,
     );
+
+    this.workerMap[queueName].on('completed', (job) => {
+      this.metricsService.incrementCounter({
+        key: MetricsKeys.JobCompleted,
+        attributes: { queue: queueName, job_name: job?.name ?? '' },
+        shouldStoreInCache: false,
+      });
+    });
+
+    this.workerMap[queueName].on('failed', (job, error) => {
+      if (!isDefined(job) || !isDefined(error)) {
+        return;
+      }
+
+      this.metricsService.incrementCounter({
+        key: MetricsKeys.JobFailed,
+        attributes: {
+          queue: queueName,
+          job_name: job.name,
+          error_type: error.name,
+        },
+        shouldStoreInCache: false,
+      });
+    });
   }
 
   async addCron<T>({

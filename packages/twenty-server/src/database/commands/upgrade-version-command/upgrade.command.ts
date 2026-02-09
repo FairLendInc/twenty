@@ -1,7 +1,7 @@
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { Command } from 'nest-commander';
-import { Repository } from 'typeorm';
+import { type Repository } from 'typeorm';
 
 import { type ActiveOrSuspendedWorkspacesMigrationCommandOptions } from 'src/database/commands/command-runners/active-or-suspended-workspaces-migration.command-runner';
 import {
@@ -9,30 +9,21 @@ import {
   UpgradeCommandRunner,
   type VersionCommands,
 } from 'src/database/commands/command-runners/upgrade.command-runner';
-import { AddWorkflowRunStopStatusesCommand } from 'src/database/commands/upgrade-version-command/1-10/1-10-add-workflow-run-stop-statuses.command';
-import { CleanOrphanedKanbanAggregateOperationFieldMetadataIdCommand } from 'src/database/commands/upgrade-version-command/1-10/1-10-clean-orphaned-kanban-aggregate-operation-field-metadata-id.command';
-import { CreateViewKanbanFieldMetadataIdForeignKeyMigrationCommand } from 'src/database/commands/upgrade-version-command/1-10/1-10-create-view-kanban-field-metadata-id-foreign-key-migration.command';
-import { FlushCacheCommand } from 'src/database/commands/upgrade-version-command/1-10/1-10-flush-cache.command';
-import { MakeSureDashboardNamingAvailableCommand } from 'src/database/commands/upgrade-version-command/1-10/1-10-make-sure-dashboard-naming-available.command';
-import { MigrateAttachmentAuthorToCreatedByCommand } from 'src/database/commands/upgrade-version-command/1-10/1-10-migrate-attachment-author-to-created-by.command';
-import { MigrateAttachmentTypeToFileCategoryCommand } from 'src/database/commands/upgrade-version-command/1-10/1-10-migrate-attachment-type-to-file-category.command';
-import { MigrateChannelPartialFullSyncStagesCommand } from 'src/database/commands/upgrade-version-command/1-10/1-10-migrate-channel-partial-full-sync-stages.command';
-import { RegenerateSearchVectorsCommand } from 'src/database/commands/upgrade-version-command/1-10/1-10-regenerate-search-vectors.command';
-import { SeedDashboardViewCommand } from 'src/database/commands/upgrade-version-command/1-10/1-10-seed-dashboard-view.command';
-import { CleanOrphanedRoleTargetsCommand } from 'src/database/commands/upgrade-version-command/1-11/1-11-clean-orphaned-role-targets.command';
-import { CleanOrphanedUserWorkspacesCommand } from 'src/database/commands/upgrade-version-command/1-11/1-11-clean-orphaned-user-workspaces.command';
-import { CreateTwentyStandardApplicationCommand } from 'src/database/commands/upgrade-version-command/1-11/1-11-create-twenty-standard-application.command';
-import { FixLabelIdentifierPositionAndVisibilityCommand } from 'src/database/commands/upgrade-version-command/1-6/1-6-fix-label-identifier-position-and-visibility.command';
-import { BackfillWorkflowManualTriggerAvailabilityCommand } from 'src/database/commands/upgrade-version-command/1-7/1-7-backfill-workflow-manual-trigger-availability.command';
-import { DeduplicateUniqueFieldsCommand } from 'src/database/commands/upgrade-version-command/1-8/1-8-deduplicate-unique-fields.command';
-import { FillNullServerlessFunctionLayerIdCommand } from 'src/database/commands/upgrade-version-command/1-8/1-8-fill-null-serverless-function-layer-id.command';
-import { MigrateChannelSyncStagesCommand } from 'src/database/commands/upgrade-version-command/1-8/1-8-migrate-channel-sync-stages.command';
-import { MigrateWorkflowStepFilterOperandValueCommand } from 'src/database/commands/upgrade-version-command/1-8/1-8-migrate-workflow-step-filter-operand-value';
-import { RegeneratePersonSearchVectorWithPhonesCommand } from 'src/database/commands/upgrade-version-command/1-8/1-8-regenerate-person-search-vector-with-phones.command';
+import { BackfillApplicationPackageFilesCommand } from 'src/database/commands/upgrade-version-command/1-17/1-17-backfill-application-package-files.command';
+import { DeleteFileRecordsCommand } from 'src/database/commands/upgrade-version-command/1-17/1-17-delete-all-files.command';
+import { FixMorphRelationFieldNamesCommand } from 'src/database/commands/upgrade-version-command/1-17/1-17-fix-morph-relation-field-names.command';
+import { IdentifyWebhookMetadataCommand } from 'src/database/commands/upgrade-version-command/1-17/1-17-identify-webhook-metadata.command';
+import { MakeWebhookUniversalIdentifierAndApplicationIdNotNullableMigrationCommand } from 'src/database/commands/upgrade-version-command/1-17/1-17-make-webhook-universal-identifier-and-application-id-not-nullable-migration.command';
+import { MigrateAttachmentToMorphRelationsCommand } from 'src/database/commands/upgrade-version-command/1-17/1-17-migrate-attachment-to-morph-relations.command';
+import { MigrateFavoritesToNavigationMenuItemsCommand } from 'src/database/commands/upgrade-version-command/1-17/1-17-migrate-favorites-to-navigation-menu-items.command';
+import { MigrateNoteTargetToMorphRelationsCommand } from 'src/database/commands/upgrade-version-command/1-17/1-17-migrate-note-target-to-morph-relations.command';
+import { MigrateTaskTargetToMorphRelationsCommand } from 'src/database/commands/upgrade-version-command/1-17/1-17-migrate-task-target-to-morph-relations.command';
+import { MigrateWorkflowCodeStepsCommand } from 'src/database/commands/upgrade-version-command/1-17/1-17-migrate-workflow-code-steps.command';
+import { UpdateFileTableMigrationCommand } from 'src/database/commands/upgrade-version-command/1-17/1-17-update-file-table-migration.command';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
-import { TwentyORMGlobalManager } from 'src/engine/twenty-orm/twenty-orm-global.manager';
-import { SyncWorkspaceMetadataCommand } from 'src/engine/workspace-manager/workspace-sync-metadata/commands/sync-workspace-metadata.command';
+import { DataSourceService } from 'src/engine/metadata-modules/data-source/data-source.service';
+import { GlobalWorkspaceOrmManager } from 'src/engine/twenty-orm/global-workspace-datasource/global-workspace-orm.manager';
 
 @Command({
   name: 'upgrade',
@@ -45,100 +36,50 @@ export class UpgradeCommand extends UpgradeCommandRunner {
     @InjectRepository(WorkspaceEntity)
     protected readonly workspaceRepository: Repository<WorkspaceEntity>,
     protected readonly twentyConfigService: TwentyConfigService,
-    protected readonly twentyORMGlobalManager: TwentyORMGlobalManager,
-    protected readonly syncWorkspaceMetadataCommand: SyncWorkspaceMetadataCommand,
+    protected readonly globalWorkspaceOrmManager: GlobalWorkspaceOrmManager,
+    protected readonly dataSourceService: DataSourceService,
 
-    // 1.6 Commands
-    protected readonly fixLabelIdentifierPositionAndVisibilityCommand: FixLabelIdentifierPositionAndVisibilityCommand,
-
-    // 1.7 Commands
-    protected readonly backfillWorkflowManualTriggerAvailabilityCommand: BackfillWorkflowManualTriggerAvailabilityCommand,
-
-    // 1.8 Commands
-    protected readonly fillNullServerlessFunctionLayerIdCommand: FillNullServerlessFunctionLayerIdCommand,
-    protected readonly migrateWorkflowStepFilterOperandValueCommand: MigrateWorkflowStepFilterOperandValueCommand,
-    protected readonly deduplicateUniqueFieldsCommand: DeduplicateUniqueFieldsCommand,
-    protected readonly regeneratePersonSearchVectorWithPhonesCommand: RegeneratePersonSearchVectorWithPhonesCommand,
-    protected readonly migrateChannelSyncStagesCommand: MigrateChannelSyncStagesCommand,
-
-    // 1.10 Commands
-    protected readonly migrateAttachmentAuthorToCreatedByCommand: MigrateAttachmentAuthorToCreatedByCommand,
-    protected readonly migrateAttachmentTypeToFileCategoryCommand: MigrateAttachmentTypeToFileCategoryCommand,
-    protected readonly regenerateSearchVectorsCommand: RegenerateSearchVectorsCommand,
-    protected readonly addWorkflowRunStopStatusesCommand: AddWorkflowRunStopStatusesCommand,
-    protected readonly cleanOrphanedKanbanAggregateOperationFieldMetadataIdCommand: CleanOrphanedKanbanAggregateOperationFieldMetadataIdCommand,
-    protected readonly migrateChannelPartialFullSyncStagesCommand: MigrateChannelPartialFullSyncStagesCommand,
-    protected readonly makeSureDashboardNamingAvailableCommand: MakeSureDashboardNamingAvailableCommand,
-    protected readonly seedDashboardViewCommand: SeedDashboardViewCommand,
-    protected readonly createViewKanbanFieldMetadataIdForeignKeyMigrationCommand: CreateViewKanbanFieldMetadataIdForeignKeyMigrationCommand,
-    protected readonly flushWorkspaceCacheCommand: FlushCacheCommand,
-
-    // 1.11 Commands
-    protected readonly cleanOrphanedUserWorkspacesCommand: CleanOrphanedUserWorkspacesCommand,
-    protected readonly cleanOrphanedRoleTargetsCommand: CleanOrphanedRoleTargetsCommand,
-    protected readonly seedStandardApplicationsCommand: CreateTwentyStandardApplicationCommand,
+    // 1.17 Commands
+    protected readonly backfillApplicationPackageFilesCommand: BackfillApplicationPackageFilesCommand,
+    protected readonly deleteFileRecordsCommand: DeleteFileRecordsCommand,
+    protected readonly migrateAttachmentToMorphRelationsCommand: MigrateAttachmentToMorphRelationsCommand,
+    protected readonly migrateFavoritesToNavigationMenuItemsCommand: MigrateFavoritesToNavigationMenuItemsCommand,
+    protected readonly migrateNoteTargetToMorphRelationsCommand: MigrateNoteTargetToMorphRelationsCommand,
+    protected readonly migrateTaskTargetToMorphRelationsCommand: MigrateTaskTargetToMorphRelationsCommand,
+    protected readonly identifyWebhookMetadataCommand: IdentifyWebhookMetadataCommand,
+    protected readonly makeWebhookUniversalIdentifierAndApplicationIdNotNullableMigrationCommand: MakeWebhookUniversalIdentifierAndApplicationIdNotNullableMigrationCommand,
+    protected readonly migrateWorkflowCodeStepsCommand: MigrateWorkflowCodeStepsCommand,
+    protected readonly updateFileTableMigrationCommand: UpdateFileTableMigrationCommand,
+    protected readonly fixMorphRelationFieldNamesCommand: FixMorphRelationFieldNamesCommand,
   ) {
     super(
       workspaceRepository,
       twentyConfigService,
-      twentyORMGlobalManager,
-      syncWorkspaceMetadataCommand,
+      globalWorkspaceOrmManager,
+      dataSourceService,
     );
 
-    const commands_160: VersionCommands = {
-      beforeSyncMetadata: [this.fixLabelIdentifierPositionAndVisibilityCommand],
-      afterSyncMetadata: [],
-    };
+    // Note: Required empty commands array to allow retrieving previous version
+    const commands_1160: VersionCommands = [];
 
-    const commands_170: VersionCommands = {
-      beforeSyncMetadata: [
-        this.backfillWorkflowManualTriggerAvailabilityCommand,
-      ],
-      afterSyncMetadata: [],
-    };
-
-    const commands_180: VersionCommands = {
-      beforeSyncMetadata: [
-        this.migrateWorkflowStepFilterOperandValueCommand,
-        this.deduplicateUniqueFieldsCommand,
-        this.regeneratePersonSearchVectorWithPhonesCommand,
-        this.migrateChannelSyncStagesCommand,
-        this.fillNullServerlessFunctionLayerIdCommand,
-      ],
-      afterSyncMetadata: [],
-    };
-
-    const commands_1100: VersionCommands = {
-      beforeSyncMetadata: [
-        this.regenerateSearchVectorsCommand,
-        this.addWorkflowRunStopStatusesCommand,
-        this.cleanOrphanedKanbanAggregateOperationFieldMetadataIdCommand,
-        this.createViewKanbanFieldMetadataIdForeignKeyMigrationCommand,
-        this.migrateChannelPartialFullSyncStagesCommand,
-        this.makeSureDashboardNamingAvailableCommand,
-      ],
-      afterSyncMetadata: [
-        this.migrateAttachmentAuthorToCreatedByCommand,
-        this.migrateAttachmentTypeToFileCategoryCommand,
-        this.seedDashboardViewCommand,
-        this.flushWorkspaceCacheCommand,
-      ],
-    };
-
-    const commands_1110: VersionCommands = {
-      beforeSyncMetadata: [this.seedStandardApplicationsCommand],
-      afterSyncMetadata: [
-        this.cleanOrphanedUserWorkspacesCommand,
-        this.cleanOrphanedRoleTargetsCommand,
-      ],
-    };
+    const commands_1170: VersionCommands = [
+      this.migrateAttachmentToMorphRelationsCommand,
+      this.migrateFavoritesToNavigationMenuItemsCommand,
+      this.migrateNoteTargetToMorphRelationsCommand,
+      this.migrateTaskTargetToMorphRelationsCommand,
+      this.identifyWebhookMetadataCommand,
+      this
+        .makeWebhookUniversalIdentifierAndApplicationIdNotNullableMigrationCommand,
+      this.migrateWorkflowCodeStepsCommand,
+      this.deleteFileRecordsCommand,
+      this.backfillApplicationPackageFilesCommand,
+      this.updateFileTableMigrationCommand,
+      this.fixMorphRelationFieldNamesCommand,
+    ];
 
     this.allCommands = {
-      '1.6.0': commands_160,
-      '1.7.0': commands_170,
-      '1.8.0': commands_180,
-      '1.10.0': commands_1100,
-      '1.11.0': commands_1110,
+      '1.16.0': commands_1160,
+      '1.17.0': commands_1170,
     };
   }
 

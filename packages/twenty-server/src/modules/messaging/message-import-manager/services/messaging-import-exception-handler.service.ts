@@ -5,7 +5,8 @@ import {
   type TwentyORMException,
   TwentyORMExceptionCode,
 } from 'src/engine/twenty-orm/exceptions/twenty-orm.exception';
-import { TwentyORMManager } from 'src/engine/twenty-orm/twenty-orm.manager';
+import { GlobalWorkspaceOrmManager } from 'src/engine/twenty-orm/global-workspace-datasource/global-workspace-orm.manager';
+import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { MessageChannelSyncStatusService } from 'src/modules/messaging/common/services/message-channel-sync-status.service';
 import {
   MessageChannelSyncStatus,
@@ -17,7 +18,6 @@ import {
   MessageImportDriverExceptionCode,
 } from 'src/modules/messaging/message-import-manager/drivers/exceptions/message-import-driver.exception';
 import { MessageNetworkExceptionCode } from 'src/modules/messaging/message-import-manager/drivers/exceptions/message-network.exception';
-import { MessagingClearCursorsService } from 'src/modules/messaging/message-import-manager/services/messaging-clear-cursors.service';
 
 export enum MessageImportSyncStep {
   MESSAGE_LIST_FETCH = 'MESSAGE_LIST_FETCH',
@@ -28,9 +28,8 @@ export enum MessageImportSyncStep {
 @Injectable()
 export class MessageImportExceptionHandlerService {
   constructor(
-    private readonly twentyORMManager: TwentyORMManager,
+    private readonly globalWorkspaceOrmManager: GlobalWorkspaceOrmManager,
     private readonly messageChannelSyncStatusService: MessageChannelSyncStatusService,
-    private readonly messagingClearCursorsService: MessagingClearCursorsService,
     private readonly exceptionHandlerService: ExceptionHandlerService,
   ) {}
 
@@ -87,6 +86,8 @@ export class MessageImportExceptionHandlerService {
             workspaceId,
           );
           break;
+        case MessageImportDriverExceptionCode.CHANNEL_MISCONFIGURED:
+        case MessageImportDriverExceptionCode.ACCESS_TOKEN_MISSING:
         case MessageImportDriverExceptionCode.UNKNOWN:
         case MessageImportDriverExceptionCode.UNKNOWN_NETWORK_ERROR:
         default:
@@ -106,14 +107,9 @@ export class MessageImportExceptionHandlerService {
     messageChannel: Pick<MessageChannelWorkspaceEntity, 'id'>,
     workspaceId: string,
   ): Promise<void> {
-    await this.messageChannelSyncStatusService.markAsFailed(
+    await this.messageChannelSyncStatusService.resetAndMarkAsMessagesListFetchPending(
       [messageChannel.id],
       workspaceId,
-      MessageChannelSyncStatus.FAILED_UNKNOWN,
-    );
-
-    await this.messagingClearCursorsService.clearAllMessageChannelCursors(
-      messageChannel.id,
     );
   }
 
@@ -138,12 +134,14 @@ export class MessageImportExceptionHandlerService {
       this.exceptionHandlerService.captureExceptions(
         [
           new Error(
-            `Temporary error occurred ${MESSAGING_THROTTLE_MAX_ATTEMPTS} times while importing messages for message channel ${messageChannel.id.slice(0, 5)}... in workspace ${workspaceId}: ${exception?.message}`,
+            `Temporary error occurred ${MESSAGING_THROTTLE_MAX_ATTEMPTS} times while importing messages for message channel ${messageChannel.id} in workspace ${workspaceId}: ${exception?.message}`,
           ),
         ],
         {
           additionalData: {
             messageChannelId: messageChannel.id,
+            syncStep,
+            throttleFailureCount: messageChannel.throttleFailureCount,
           },
           workspace: { id: workspaceId },
         },
@@ -152,31 +150,40 @@ export class MessageImportExceptionHandlerService {
       return;
     }
 
-    const messageChannelRepository =
-      await this.twentyORMManager.getRepository<MessageChannelWorkspaceEntity>(
-        'messageChannel',
-      );
+    const authContext = buildSystemAuthContext(workspaceId);
 
-    await messageChannelRepository.increment(
-      { id: messageChannel.id },
-      'throttleFailureCount',
-      1,
-      undefined,
-      ['throttleFailureCount', 'id'],
-    );
+    await this.globalWorkspaceOrmManager.executeInWorkspaceContext(async () => {
+      const messageChannelRepository =
+        await this.globalWorkspaceOrmManager.getRepository<MessageChannelWorkspaceEntity>(
+          workspaceId,
+          'messageChannel',
+        );
+
+      await messageChannelRepository.increment(
+        { id: messageChannel.id },
+        'throttleFailureCount',
+        1,
+        undefined,
+        ['throttleFailureCount', 'id'],
+      );
+    }, authContext);
 
     switch (syncStep) {
       case MessageImportSyncStep.MESSAGE_LIST_FETCH:
-        await this.messageChannelSyncStatusService.scheduleMessageListFetch([
-          messageChannel.id,
-        ]);
+        await this.messageChannelSyncStatusService.markAsMessagesListFetchPending(
+          [messageChannel.id],
+          workspaceId,
+          true,
+        );
         break;
 
       case MessageImportSyncStep.MESSAGES_IMPORT_PENDING:
       case MessageImportSyncStep.MESSAGES_IMPORT_ONGOING:
-        await this.messageChannelSyncStatusService.scheduleMessagesImport([
-          messageChannel.id,
-        ]);
+        await this.messageChannelSyncStatusService.markAsMessagesImportPending(
+          [messageChannel.id],
+          workspaceId,
+          true,
+        );
         break;
 
       default:
@@ -242,6 +249,7 @@ export class MessageImportExceptionHandlerService {
         {
           additionalData: {
             messageChannelId: messageChannel.id,
+            syncStep,
           },
           workspace: { id: workspaceId },
         },
@@ -250,7 +258,7 @@ export class MessageImportExceptionHandlerService {
       return;
     }
 
-    await this.messageChannelSyncStatusService.resetAndScheduleMessageListFetch(
+    await this.messageChannelSyncStatusService.resetAndMarkAsMessagesListFetchPending(
       [messageChannel.id],
       workspaceId,
     );

@@ -1,7 +1,9 @@
+import { isDefined } from 'class-validator';
 import { type DataSource } from 'typeorm';
+import { v4 } from 'uuid';
 
-import { validateAndTransformWidgetConfiguration } from 'src/engine/core-modules/page-layout/utils/validate-and-transform-widget-configuration.util';
 import { type ObjectMetadataEntity } from 'src/engine/metadata-modules/object-metadata/object-metadata.entity';
+import { validateWidgetConfigurationInput } from 'src/engine/metadata-modules/page-layout-widget/utils/validate-widget-configuration-input.util';
 import { getPageLayoutWidgetDataSeeds } from 'src/engine/workspace-manager/dev-seeder/core/utils/get-page-layout-widget-data-seeds.util';
 
 export const seedPageLayoutWidgets = async ({
@@ -10,31 +12,36 @@ export const seedPageLayoutWidgets = async ({
   workspaceId,
   objectMetadataItems,
   isDashboardV2Enabled,
+  workspaceCustomApplicationId,
 }: {
   dataSource: DataSource;
   schemaName: string;
   workspaceId: string;
   objectMetadataItems: ObjectMetadataEntity[];
   isDashboardV2Enabled: boolean;
+  workspaceCustomApplicationId: string;
 }) => {
-  const pageLayoutWidgets = getPageLayoutWidgetDataSeeds(
+  const widgetSeeds = getPageLayoutWidgetDataSeeds(
     workspaceId,
     objectMetadataItems,
     isDashboardV2Enabled,
-  ).map((widget) => {
-    const validatedConfiguration = widget.configuration
-      ? validateAndTransformWidgetConfiguration({
-          type: widget.type,
-          configuration: widget.configuration,
-          isDashboardV2Enabled,
-        })
-      : null;
+  );
+
+  const pageLayoutWidgets = widgetSeeds.map((widget) => {
+    if (isDefined(widget.configuration)) {
+      validateWidgetConfigurationInput({
+        configuration: widget.configuration,
+      });
+    }
 
     return {
       ...widget,
       workspaceId,
       gridPosition: widget.gridPosition,
-      configuration: validatedConfiguration,
+      position: widget.position,
+      configuration: widget.configuration,
+      universalIdentifier: v4(),
+      applicationId: workspaceCustomApplicationId,
     };
   });
 
@@ -48,9 +55,12 @@ export const seedPageLayoutWidgets = async ({
         'title',
         'type',
         'gridPosition',
+        'position',
         'configuration',
         'objectMetadataId',
         'workspaceId',
+        'universalIdentifier',
+        'applicationId',
       ])
       .values(pageLayoutWidgets)
       .orIgnore()

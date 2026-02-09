@@ -6,18 +6,20 @@ import { NodeEnvironment } from 'src/engine/core-modules/twenty-config/interface
 import { SupportDriver } from 'src/engine/core-modules/twenty-config/interfaces/support.interface';
 
 import {
-  AI_MODELS,
-  ModelProvider,
-} from 'src/engine/core-modules/ai/constants/ai-models.const';
-import { AiModelRegistryService } from 'src/engine/core-modules/ai/services/ai-model-registry.service';
-import { convertCentsToBillingCredits } from 'src/engine/core-modules/ai/utils/convert-cents-to-billing-credits.util';
-import {
   type ClientAIModelConfig,
   type ClientConfig,
 } from 'src/engine/core-modules/client-config/client-config.entity';
 import { DomainServerConfigService } from 'src/engine/core-modules/domain/domain-server-config/services/domain-server-config.service';
 import { PUBLIC_FEATURE_FLAGS } from 'src/engine/core-modules/feature-flag/constants/public-feature-flag.const';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
+import { convertCentsToBillingCredits } from 'src/engine/metadata-modules/ai/ai-billing/utils/convert-cents-to-billing-credits.util';
+import {
+  AI_MODELS,
+  DEFAULT_FAST_MODEL,
+  DEFAULT_SMART_MODEL,
+  ModelProvider,
+} from 'src/engine/metadata-modules/ai/ai-models/constants/ai-models.const';
+import { AiModelRegistryService } from 'src/engine/metadata-modules/ai/ai-models/services/ai-model-registry.service';
 
 @Injectable()
 export class ClientConfigService {
@@ -26,6 +28,13 @@ export class ClientConfigService {
     private domainServerConfigService: DomainServerConfigService,
     private aiModelRegistryService: AiModelRegistryService,
   ) {}
+
+  private isCloudflareIntegrationEnabled(): boolean {
+    return (
+      !!this.twentyConfigService.get('CLOUDFLARE_API_KEY') &&
+      !!this.twentyConfigService.get('CLOUDFLARE_ZONE_ID')
+    );
+  }
 
   async getClientConfig(): Promise<ClientConfig> {
     const captchaProvider = this.twentyConfigService.get('CAPTCHA_DRIVER');
@@ -57,18 +66,48 @@ export class ClientConfigService {
                 builtInModel.outputCostPer1kTokensInCents,
               )
             : 0,
+          deprecated: builtInModel?.deprecated,
         };
       },
     );
 
     if (aiModels.length > 0) {
-      aiModels.unshift({
-        modelId: 'auto',
-        label: 'Auto',
-        provider: ModelProvider.NONE,
-        inputCostPer1kTokensInCredits: 0,
-        outputCostPer1kTokensInCredits: 0,
-      });
+      const defaultSpeedModel =
+        this.aiModelRegistryService.getDefaultSpeedModel();
+      const defaultSpeedModelConfig = AI_MODELS.find(
+        (m) => m.modelId === defaultSpeedModel?.modelId,
+      );
+      const defaultSpeedModelLabel =
+        defaultSpeedModelConfig?.label ||
+        defaultSpeedModel?.modelId ||
+        'Default';
+
+      const defaultPerformanceModel =
+        this.aiModelRegistryService.getDefaultPerformanceModel();
+      const defaultPerformanceModelConfig = AI_MODELS.find(
+        (m) => m.modelId === defaultPerformanceModel?.modelId,
+      );
+      const defaultPerformanceModelLabel =
+        defaultPerformanceModelConfig?.label ||
+        defaultPerformanceModel?.modelId ||
+        'Default';
+
+      aiModels.unshift(
+        {
+          modelId: DEFAULT_SMART_MODEL,
+          label: `Smart (${defaultPerformanceModelLabel})`,
+          provider: ModelProvider.NONE,
+          inputCostPer1kTokensInCredits: 0,
+          outputCostPer1kTokensInCredits: 0,
+        },
+        {
+          modelId: DEFAULT_FAST_MODEL,
+          label: `Fast (${defaultSpeedModelLabel})`,
+          provider: ModelProvider.NONE,
+          inputCostPer1kTokensInCredits: 0,
+          outputCostPer1kTokensInCredits: 0,
+        },
+      );
     }
 
     const clientConfig: ClientConfig = {
@@ -159,9 +198,14 @@ export class ClientConfigService {
       isImapSmtpCaldavEnabled: this.twentyConfigService.get(
         'IS_IMAP_SMTP_CALDAV_ENABLED',
       ),
+      allowRequestsToTwentyIcons: this.twentyConfigService.get(
+        'ALLOW_REQUESTS_TO_TWENTY_ICONS',
+      ),
       calendarBookingPageId: isNonEmptyString(calendarBookingPageId)
         ? calendarBookingPageId
         : undefined,
+      isCloudflareIntegrationEnabled: this.isCloudflareIntegrationEnabled(),
+      isClickHouseConfigured: !!this.twentyConfigService.get('CLICKHOUSE_URL'),
     };
 
     return clientConfig;

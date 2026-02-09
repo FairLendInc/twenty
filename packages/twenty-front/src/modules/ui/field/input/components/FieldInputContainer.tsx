@@ -1,7 +1,7 @@
 //TODO:
 import styled from '@emotion/styled';
 
-// eslint-disable-next-line @nx/workspace-styled-components-prefixed-with-styled
+// eslint-disable-next-line twenty/styled-components-prefixed-with-styled
 export const FieldInputContainer = styled.div`
   align-items: center;
   display: flex;

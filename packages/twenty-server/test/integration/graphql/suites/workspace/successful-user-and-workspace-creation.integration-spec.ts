@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto';
+
 import { activateWorkspace } from 'test/integration/graphql/utils/activate-workspace.util';
 import { deleteUser } from 'test/integration/graphql/utils/delete-user.util';
 import { findManyApplications } from 'test/integration/graphql/utils/find-many-applications.util';
@@ -5,12 +7,13 @@ import { getAuthTokensFromLoginToken } from 'test/integration/graphql/utils/get-
 import { getCurrentUser } from 'test/integration/graphql/utils/get-current-user.util';
 import { signUpInNewWorkspace } from 'test/integration/graphql/utils/sign-up-in-new-workspace.util';
 import { signUp } from 'test/integration/graphql/utils/sign-up.util';
+import { createOneLogicFunction } from 'test/integration/metadata/suites/logic-function/utils/create-one-logic-function.util';
 import { createOneObjectMetadata } from 'test/integration/metadata/suites/object-metadata/utils/create-one-object-metadata.util';
 import { jestExpectToBeDefined } from 'test/utils/jest-expect-to-be-defined.util.test';
 import { isDefined } from 'twenty-shared/utils';
 import { WorkspaceActivationStatus } from 'twenty-shared/workspace';
 
-import { TWENTY_STANDARD_APPLICATION } from 'src/engine/workspace-manager/workspace-sync-metadata/constants/twenty-standard-applications';
+import { TWENTY_STANDARD_APPLICATION } from 'src/engine/workspace-manager/twenty-standard-application/constants/twenty-standard-applications';
 
 describe('Successful user and workspace creation', () => {
   let createdUserAccessToken: string | undefined;
@@ -27,9 +30,11 @@ describe('Successful user and workspace creation', () => {
   });
 
   it('should sign up a new user and create a new workspace successfully', async () => {
+    const uniqueEmail = `test-${randomUUID()}@example.com`;
+
     const { data } = await signUp({
       input: {
-        email: `test-1234@example.com`,
+        email: uniqueEmail,
         password: 'Test123!@#',
       },
 
@@ -38,6 +43,12 @@ describe('Successful user and workspace creation', () => {
 
     createdUserAccessToken =
       data.signUp.tokens.accessOrWorkspaceAgnosticToken.token;
+
+    // Mark email as verified to bypass email verification requirement
+    await testDataSource.query(
+      'UPDATE core."user" SET "isEmailVerified" = true WHERE email = $1',
+      [uniqueEmail],
+    );
 
     const {
       data: { signUpInNewWorkspace: signUpInNewWorkspaceData },
@@ -121,9 +132,11 @@ describe('Successful user and workspace creation', () => {
   });
 
   it('should delete workspace and related metadata entities when last user is deleted', async () => {
+    const uniqueEmail = `test-delete-${randomUUID()}@example.com`;
+
     const { data } = await signUp({
       input: {
-        email: `test-delete-5678@example.com`,
+        email: uniqueEmail,
         password: 'Test123!@#',
       },
       expectToFail: false,
@@ -131,6 +144,12 @@ describe('Successful user and workspace creation', () => {
 
     createdUserAccessToken =
       data.signUp.tokens.accessOrWorkspaceAgnosticToken.token;
+
+    // Mark email as verified to bypass email verification requirement
+    await testDataSource.query(
+      'UPDATE core."user" SET "isEmailVerified" = true WHERE email = $1',
+      [uniqueEmail],
+    );
 
     const {
       data: { signUpInNewWorkspace: signUpInNewWorkspaceData },
@@ -170,6 +189,19 @@ describe('Successful user and workspace creation', () => {
       expectToFail: false,
     });
 
+    // Create a logic function for workspace deletion test
+    await createOneLogicFunction({
+      input: {
+        name: 'test-function-for-deletion',
+        description: 'A test logic function for workspace deletion test',
+        code: {
+          'src/index.ts': 'export const main = async () => { return {}; };',
+        },
+      },
+      token: newWorkspaceAccessToken,
+      expectToFail: false,
+    });
+
     const workspaceBeforeDeletion = await testDataSource.query(
       'SELECT * FROM core.workspace WHERE id = $1',
       [workspaceId],
@@ -183,27 +215,19 @@ describe('Successful user and workspace creation', () => {
       'fieldMetadata',
       'indexMetadata',
       'searchFieldMetadata',
-      'workspaceMigration',
       'role',
-      'roleTargets',
+      'roleTarget',
       'objectPermission',
       'fieldPermission',
       'permissionFlag',
-      'serverlessFunction',
-      'serverlessFunctionLayer',
+      'logicFunction',
       'agent',
-      'agentHandoff',
-      'remoteServer',
-      'remoteTable',
-      'databaseEventTrigger',
       'view',
       'viewField',
       'viewFilter',
       'viewFilterGroup',
       'viewGroup',
       'viewSort',
-      'cronTrigger',
-      'routeTrigger',
     ];
 
     let totalRecordsBefore = 0;

@@ -1,514 +1,276 @@
 import { isObject } from 'class-validator';
-import {
-  type AggregateOrderByWithGroupByField,
-  FieldMetadataType,
-  ObjectRecordGroupByDateGranularity,
-  type ObjectRecordOrderByForCompositeField,
-  type ObjectRecordOrderByForScalarField,
-  type ObjectRecordOrderByWithGroupByDateField,
-  OrderByDirection,
-  type OrderByWithGroupBy,
-} from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 
 import { type ObjectRecordOrderBy } from 'src/engine/api/graphql/workspace-query-builder/interfaces/object-record.interface';
 
+import { STANDARD_ERROR_MESSAGE } from 'src/engine/api/common/common-query-runners/errors/standard-error-message.constant';
 import {
   GraphqlQueryRunnerException,
   GraphqlQueryRunnerExceptionCode,
 } from 'src/engine/api/graphql/graphql-query-runner/errors/graphql-query-runner.exception';
+import {
+  buildOrderByColumnExpression,
+  shouldCastToText,
+  shouldUseCaseInsensitiveOrder,
+} from 'src/engine/api/graphql/graphql-query-runner/graphql-query-parsers/graphql-query-order/utils/build-order-by-column-expression.util';
 import { convertOrderByToFindOptionsOrder } from 'src/engine/api/graphql/graphql-query-runner/graphql-query-parsers/graphql-query-order/utils/convert-order-by-to-find-options-order';
+import { isOrderByDirection } from 'src/engine/api/graphql/graphql-query-runner/graphql-query-parsers/graphql-query-order/utils/is-order-by-direction.util';
 import { parseCompositeFieldForOrder } from 'src/engine/api/graphql/graphql-query-runner/graphql-query-parsers/graphql-query-order/utils/parse-composite-field-for-order.util';
-import {
-  type GroupByDateField,
-  type GroupByField,
-} from 'src/engine/api/graphql/graphql-query-runner/group-by/resolvers/types/group-by-field.types';
-import { getGroupByExpression } from 'src/engine/api/graphql/graphql-query-runner/group-by/resolvers/utils/get-group-by-expression.util';
-import { ProcessAggregateHelper } from 'src/engine/api/graphql/graphql-query-runner/helpers/process-aggregate.helper';
-import {
-  type AggregationField,
-  getAvailableAggregationsFromObjectFields,
-} from 'src/engine/api/graphql/workspace-schema-builder/utils/get-available-aggregations-from-object-fields.util';
-import { isFieldMetadataRelationOrMorphRelation } from 'src/engine/api/graphql/workspace-schema-builder/utils/is-field-metadata-relation-or-morph-relation.utils';
-import { UserInputError } from 'src/engine/core-modules/graphql/utils/graphql-errors.util';
-import { type FieldMetadataEntity } from 'src/engine/metadata-modules/field-metadata/field-metadata.entity';
 import { isCompositeFieldMetadataType } from 'src/engine/metadata-modules/field-metadata/utils/is-composite-field-metadata-type.util';
-import { type ObjectMetadataItemWithFieldMaps } from 'src/engine/metadata-modules/types/object-metadata-item-with-field-maps';
-import { formatColumnNameForRelationField } from 'src/engine/twenty-orm/utils/format-column-name-for-relation-field.util';
-import { formatColumnNamesFromCompositeFieldAndSubfields } from 'src/engine/twenty-orm/utils/format-column-names-from-composite-field-and-subfield.util';
+import { type FlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/types/flat-entity-maps.type';
+import { findFlatEntityByIdInFlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/utils/find-flat-entity-by-id-in-flat-entity-maps.util';
+import { type FlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata.type';
+import { buildFieldMapsFromFlatObjectMetadata } from 'src/engine/metadata-modules/flat-field-metadata/utils/build-field-maps-from-flat-object-metadata.util';
+import { isMorphOrRelationFlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/utils/is-morph-or-relation-flat-field-metadata.util';
+import { type FlatObjectMetadata } from 'src/engine/metadata-modules/flat-object-metadata/types/flat-object-metadata.type';
 
-export type OrderByCondition = {
-  order: 'ASC' | 'DESC';
-  nulls?: 'NULLS FIRST' | 'NULLS LAST';
-};
+import { type OrderByClause } from './types/order-by-condition.type';
+import { type ParseOrderByResult } from './types/parse-order-by-result.type';
+import { type RelationJoinInfo } from './types/relation-join-info.type';
+
+// Re-export types for backward compatibility
+export { OrderByClause, ParseOrderByResult, RelationJoinInfo };
 
 export class GraphqlQueryOrderFieldParser {
-  private objectMetadataMapItem: ObjectMetadataItemWithFieldMaps;
+  private flatObjectMetadata: FlatObjectMetadata;
+  private flatObjectMetadataMaps: FlatEntityMaps<FlatObjectMetadata>;
+  private flatFieldMetadataMaps: FlatEntityMaps<FlatFieldMetadata>;
+  private fieldIdByName: Record<string, string>;
+  private fieldIdByJoinColumnName: Record<string, string>;
 
-  constructor(objectMetadataMapItem: ObjectMetadataItemWithFieldMaps) {
-    this.objectMetadataMapItem = objectMetadataMapItem;
+  constructor(
+    flatObjectMetadata: FlatObjectMetadata,
+    flatObjectMetadataMaps: FlatEntityMaps<FlatObjectMetadata>,
+    flatFieldMetadataMaps: FlatEntityMaps<FlatFieldMetadata>,
+  ) {
+    this.flatObjectMetadata = flatObjectMetadata;
+    this.flatObjectMetadataMaps = flatObjectMetadataMaps;
+    this.flatFieldMetadataMaps = flatFieldMetadataMaps;
+
+    const fieldMaps = buildFieldMapsFromFlatObjectMetadata(
+      flatFieldMetadataMaps,
+      flatObjectMetadata,
+    );
+
+    this.fieldIdByName = fieldMaps.fieldIdByName;
+    this.fieldIdByJoinColumnName = fieldMaps.fieldIdByJoinColumnName;
   }
 
   parse(
     orderBy: ObjectRecordOrderBy,
     objectNameSingular: string,
     isForwardPagination = true,
-  ): Record<string, OrderByCondition> {
-    return orderBy.reduce(
-      (acc, item) => {
-        Object.entries(item).forEach(([fieldName, orderByDirection]) => {
-          const fieldMetadataId =
-            this.objectMetadataMapItem.fieldIdByName[fieldName] ||
-            this.objectMetadataMapItem.fieldIdByJoinColumnName[fieldName];
-          const fieldMetadata =
-            this.objectMetadataMapItem.fieldsById[fieldMetadataId];
+  ): ParseOrderByResult {
+    const orderByConditions: Record<string, OrderByClause> = {};
+    const relationJoins: RelationJoinInfo[] = [];
+    const addedJoinAliases = new Set<string>();
 
-          if (!fieldMetadata || orderByDirection === undefined) {
-            throw new GraphqlQueryRunnerException(
-              `Field "${fieldName}" does not exist or is not sortable`,
-              GraphqlQueryRunnerExceptionCode.FIELD_NOT_FOUND,
-            );
-          }
-
-          if (isCompositeFieldMetadataType(fieldMetadata.type)) {
-            const compositeOrder = parseCompositeFieldForOrder(
-              fieldMetadata,
-              orderByDirection,
-              objectNameSingular,
-              isForwardPagination,
-            );
-
-            Object.assign(acc, compositeOrder);
-          } else {
-            const orderByCasting =
-              this.getOptionalOrderByCasting(fieldMetadata);
-
-            const columnName = isFieldMetadataRelationOrMorphRelation(
-              fieldMetadata,
-            )
-              ? formatColumnNameForRelationField(
-                  fieldMetadata.name,
-                  fieldMetadata.settings,
-                )
-              : fieldName;
-
-            acc[`"${objectNameSingular}"."${columnName}"${orderByCasting}`] =
-              convertOrderByToFindOptionsOrder(
-                orderByDirection as OrderByDirection,
-                isForwardPagination,
-              );
-          }
+    for (const item of orderBy) {
+      for (const [fieldName, orderByDirection] of Object.entries(item)) {
+        // Check if accessed by relation name (company) vs FK name (companyId)
+        const isAccessedByRelationName = !!this.fieldIdByName[fieldName];
+        const fieldMetadataId =
+          this.fieldIdByName[fieldName] ||
+          this.fieldIdByJoinColumnName[fieldName];
+        const fieldMetadata = findFlatEntityByIdInFlatEntityMaps({
+          flatEntityId: fieldMetadataId,
+          flatEntityMaps: this.flatFieldMetadataMaps,
         });
 
-        return acc;
-      },
-      {} as Record<string, OrderByCondition>,
-    );
-  }
+        if (!fieldMetadata || orderByDirection === undefined) {
+          throw new GraphqlQueryRunnerException(
+            `Field "${fieldName}" does not exist or is not sortable`,
+            GraphqlQueryRunnerExceptionCode.FIELD_NOT_FOUND,
+            { userFriendlyMessage: STANDARD_ERROR_MESSAGE },
+          );
+        }
 
-  parseForGroupBy({
-    orderBy,
-    groupByFields,
-  }: {
-    orderBy: OrderByWithGroupBy;
-    groupByFields: GroupByField[];
-  }): Record<string, OrderByCondition>[] {
-    let parsedOrderBy: Record<string, OrderByCondition>[] = [];
+        // Only treat as relation if accessed by relation name (not FK like companyId)
+        if (
+          isAccessedByRelationName &&
+          isMorphOrRelationFlatFieldMetadata(fieldMetadata)
+        ) {
+          if (!isObject(orderByDirection)) {
+            throw new GraphqlQueryRunnerException(
+              `Relation field "${fieldName}" requires nested field ordering (e.g., { ${fieldName}: { fieldName: 'AscNullsFirst' } })`,
+              GraphqlQueryRunnerExceptionCode.INVALID_QUERY_INPUT,
+              { userFriendlyMessage: STANDARD_ERROR_MESSAGE },
+            );
+          }
 
-    const availableAggregations: Record<string, AggregationField> =
-      getAvailableAggregationsFromObjectFields(
-        Object.values(this.objectMetadataMapItem.fieldsById),
-      );
-
-    for (const orderByArg of orderBy) {
-      if (this.isAggregateOrderByArg(orderByArg)) {
-        const parsedAggregateOrderBy = this.parseAggregateOrderByArg(
-          availableAggregations,
-          orderByArg,
-          this.objectMetadataMapItem,
-        );
-
-        parsedOrderBy.push(parsedAggregateOrderBy);
-        continue;
-      }
-
-      const fieldName = Object.keys(orderByArg)[0];
-      const fieldMetadataId =
-        this.objectMetadataMapItem.fieldIdByName[fieldName];
-      const fieldMetadata =
-        this.objectMetadataMapItem.fieldsById[fieldMetadataId];
-
-      if (!isDefined(fieldMetadata)) {
-        throw new UserInputError(`Cannot orderBy unknown field: ${fieldName}.`);
-      }
-
-      if (this.isObjectRecordOrderByForScalarField(orderByArg)) {
-        const parsedOrderByForScalarField =
-          this.parseObjectRecordOrderByForScalarField({
-            groupByFields,
-            orderByArg,
-            objectMetadataItemWithFieldMaps: this.objectMetadataMapItem,
+          const relationOrderResult = this.parseRelationFieldOrder({
             fieldMetadata,
+            orderByDirection: orderByDirection as Record<string, unknown>,
+            isForwardPagination,
           });
 
-        if (!isDefined(parsedOrderByForScalarField)) {
-          continue;
-        }
+          if (relationOrderResult) {
+            Object.assign(orderByConditions, relationOrderResult.orderBy);
 
-        parsedOrderBy.push(parsedOrderByForScalarField);
-        continue;
-      }
+            if (!addedJoinAliases.has(relationOrderResult.joinInfo.joinAlias)) {
+              relationJoins.push(relationOrderResult.joinInfo);
+              addedJoinAliases.add(relationOrderResult.joinInfo.joinAlias);
+            }
+          }
+        } else if (isCompositeFieldMetadataType(fieldMetadata.type)) {
+          if (!isObject(orderByDirection)) {
+            throw new GraphqlQueryRunnerException(
+              `Composite field "${fieldName}" requires subfield ordering (e.g., { ${fieldName}: { subFieldName: 'AscNullsFirst' } })`,
+              GraphqlQueryRunnerExceptionCode.INVALID_QUERY_INPUT,
+              { userFriendlyMessage: STANDARD_ERROR_MESSAGE },
+            );
+          }
 
-      if (
-        this.isObjectRecordOrderByWithGroupByDateField(
-          orderByArg,
-          fieldMetadata.type,
-        )
-      ) {
-        const parsedOrderByForGroupByDateField =
-          this.parseObjectRecordOrderByWithGroupByDateField({
-            groupByFields,
-            orderByArg,
-            fieldMetadataId,
-          });
-
-        if (!isDefined(parsedOrderByForGroupByDateField)) {
-          continue;
-        }
-
-        parsedOrderBy.push(parsedOrderByForGroupByDateField);
-        continue;
-      }
-
-      if (this.isObjectRecordOrderByForCompositeField(orderByArg)) {
-        const parsedOrderByForCompositeField =
-          this.parseObjectRecordOrderByForCompositeField({
-            groupByFields,
-            orderByArg,
-            objectMetadataItemWithFieldMaps: this.objectMetadataMapItem,
+          const compositeOrder = parseCompositeFieldForOrder(
             fieldMetadata,
-          });
+            orderByDirection as Record<string, unknown>,
+            objectNameSingular,
+            isForwardPagination,
+          );
 
-        if (!isDefined(parsedOrderByForCompositeField)) {
-          continue;
+          Object.assign(orderByConditions, compositeOrder);
+        } else {
+          if (!isOrderByDirection(orderByDirection)) {
+            throw new GraphqlQueryRunnerException(
+              `Scalar field "${fieldName}" requires a direction value (AscNullsFirst, AscNullsLast, DescNullsFirst, DescNullsLast)`,
+              GraphqlQueryRunnerExceptionCode.INVALID_QUERY_INPUT,
+              { userFriendlyMessage: STANDARD_ERROR_MESSAGE },
+            );
+          }
+
+          const columnExpression = buildOrderByColumnExpression(
+            objectNameSingular,
+            fieldName,
+          );
+
+          orderByConditions[columnExpression] = {
+            ...convertOrderByToFindOptionsOrder(
+              orderByDirection,
+              isForwardPagination,
+            ),
+            useLower: shouldUseCaseInsensitiveOrder(fieldMetadata.type),
+            castToText: shouldCastToText(fieldMetadata.type),
+          };
         }
-
-        parsedOrderBy.push(parsedOrderByForCompositeField);
-        continue;
       }
-
-      throw new UserInputError(`Unknown orderBy value: ${orderByArg}`);
-    }
-
-    return parsedOrderBy;
-  }
-
-  getOptionalOrderByCasting(
-    fieldMetadata: Pick<FieldMetadataEntity, 'type'>,
-  ): string {
-    if (
-      fieldMetadata.type === FieldMetadataType.SELECT ||
-      fieldMetadata.type === FieldMetadataType.MULTI_SELECT
-    ) {
-      return '::text';
-    }
-
-    return '';
-  }
-
-  isAggregateOrderByArg = (
-    orderByArg:
-      | ObjectRecordOrderByForScalarField
-      | ObjectRecordOrderByForCompositeField
-      | AggregateOrderByWithGroupByField
-      | ObjectRecordOrderByWithGroupByDateField,
-  ): orderByArg is AggregateOrderByWithGroupByField => {
-    return isDefined(orderByArg.aggregate);
-  };
-
-  isObjectRecordOrderByForScalarField = (
-    orderByArg:
-      | ObjectRecordOrderByForScalarField
-      | ObjectRecordOrderByForCompositeField
-      | ObjectRecordOrderByWithGroupByDateField,
-  ): orderByArg is ObjectRecordOrderByForScalarField => {
-    if (Object.keys(orderByArg).length > 1) {
-      throw new UserInputError(
-        'Please provide orderBy field criteria one by one in orderBy array',
-      );
-    }
-
-    const scalarFieldOrCompositeFieldOrderByValue =
-      Object.values(orderByArg)[0];
-
-    if (
-      Object.values(OrderByDirection).includes(
-        scalarFieldOrCompositeFieldOrderByValue,
-      )
-    ) {
-      return true;
-    }
-
-    return false;
-  };
-
-  isObjectRecordOrderByForCompositeField = (
-    orderByArg:
-      | ObjectRecordOrderByForScalarField
-      | ObjectRecordOrderByForCompositeField
-      | ObjectRecordOrderByWithGroupByDateField,
-  ): orderByArg is ObjectRecordOrderByForCompositeField => {
-    const compositeFieldOrderByValue = Object.values(orderByArg)[0];
-
-    if (!isObject(compositeFieldOrderByValue)) {
-      throw new UserInputError(
-        `Unknown orderBy value: ${compositeFieldOrderByValue}`,
-      );
-    }
-
-    if (Object.values(compositeFieldOrderByValue).length > 1) {
-      throw new UserInputError(
-        'Please provide orderBy field criteria one by one in orderBy array',
-      );
-    }
-
-    const compositeFieldOrderByDirection = Object.values(
-      compositeFieldOrderByValue,
-    )[0];
-
-    if (
-      Object.values(OrderByDirection).includes(
-        compositeFieldOrderByDirection as OrderByDirection,
-      )
-    ) {
-      return true;
-    }
-
-    return false;
-  };
-
-  isObjectRecordOrderByWithGroupByDateField = (
-    orderByArg:
-      | ObjectRecordOrderByForScalarField
-      | ObjectRecordOrderByForCompositeField
-      | AggregateOrderByWithGroupByField
-      | ObjectRecordOrderByWithGroupByDateField,
-    fieldMetadataType: FieldMetadataType,
-  ): orderByArg is ObjectRecordOrderByWithGroupByDateField => {
-    if (
-      fieldMetadataType !== FieldMetadataType.DATE &&
-      fieldMetadataType !== FieldMetadataType.DATE_TIME
-    ) {
-      return false;
-    }
-
-    if (Object.keys(orderByArg).length > 1) {
-      throw new UserInputError(
-        'Please provide orderBy field criteria one by one in orderBy array',
-      );
-    }
-
-    const dateFieldOrderByValue = Object.values(orderByArg)[0];
-
-    if (!isDefined(dateFieldOrderByValue)) {
-      return false;
-    }
-
-    if (!isDefined(dateFieldOrderByValue.orderBy)) {
-      return false;
-    }
-
-    if (
-      !Object.values(OrderByDirection).includes(dateFieldOrderByValue.orderBy)
-    ) {
-      return false;
-    }
-
-    if (!isDefined(dateFieldOrderByValue.granularity)) {
-      return false;
-    }
-
-    if (
-      !Object.values(ObjectRecordGroupByDateGranularity).includes(
-        dateFieldOrderByValue.granularity,
-      )
-    ) {
-      return false;
-    }
-
-    return true;
-  };
-
-  parseAggregateOrderByArg = (
-    availableAggregations: Record<string, AggregationField>,
-    orderByArg: AggregateOrderByWithGroupByField,
-    objectMetadataItemWithFieldMaps: ObjectMetadataItemWithFieldMaps,
-  ): Record<string, OrderByCondition> => {
-    const aggregate = orderByArg.aggregate;
-
-    if (Object.keys(aggregate).length > 1) {
-      throw new UserInputError(
-        'Please provide aggregate criteria one by one in orderBy array',
-      );
-    }
-
-    const aggregateField = availableAggregations[Object.keys(aggregate)[0]];
-
-    if (!aggregateField) {
-      throw new UserInputError(
-        `Unknown aggregate field: ${Object.keys(aggregate)[0]}`,
-      );
-    }
-
-    const aggregateExpression = ProcessAggregateHelper.getAggregateExpression(
-      aggregateField,
-      objectMetadataItemWithFieldMaps.nameSingular,
-    );
-
-    if (!isDefined(aggregateExpression)) {
-      throw new UserInputError(
-        `Cannot find expression for aggregate field: ${Object.keys(aggregate)[0]}`,
-      );
-    }
-    const orderByDirection = Object.values(aggregate)[0];
-    const convertedDirection =
-      convertOrderByToFindOptionsOrder(orderByDirection);
-
-    return {
-      [aggregateExpression]: convertedDirection,
-    };
-  };
-
-  parseObjectRecordOrderByForScalarField = ({
-    groupByFields,
-    orderByArg,
-    objectMetadataItemWithFieldMaps,
-    fieldMetadata,
-  }: {
-    groupByFields: GroupByField[];
-    orderByArg: ObjectRecordOrderByForScalarField;
-    objectMetadataItemWithFieldMaps: ObjectMetadataItemWithFieldMaps;
-    fieldMetadata: FieldMetadataEntity;
-  }): Record<string, OrderByCondition> | null => {
-    const fieldIsInGroupBy = groupByFields.some(
-      (groupByField) => groupByField.fieldMetadata.id === fieldMetadata.id,
-    );
-
-    if (!fieldIsInGroupBy) {
-      throw new UserInputError(
-        `Cannot order by a field that is not an aggregate nor in groupBy criteria: ${fieldMetadata.name}.`,
-      );
-    }
-
-    const orderByCasting = this.getOptionalOrderByCasting(fieldMetadata);
-    const orderByDirection = Object.values(orderByArg)[0];
-
-    if (!isDefined(orderByDirection)) {
-      return null;
     }
 
     return {
-      [`"${objectMetadataItemWithFieldMaps.nameSingular}"."${fieldMetadata.name}"${orderByCasting}`]:
-        convertOrderByToFindOptionsOrder(orderByDirection),
+      orderBy: orderByConditions,
+      relationJoins,
     };
-  };
+  }
 
-  parseObjectRecordOrderByForCompositeField = ({
-    groupByFields,
-    orderByArg,
-    objectMetadataItemWithFieldMaps,
+  private parseRelationFieldOrder({
     fieldMetadata,
+    orderByDirection,
+    isForwardPagination,
   }: {
-    groupByFields: GroupByField[];
-    orderByArg: ObjectRecordOrderByForCompositeField;
-    objectMetadataItemWithFieldMaps: ObjectMetadataItemWithFieldMaps;
-    fieldMetadata: FieldMetadataEntity;
-  }): Record<string, OrderByCondition> | null => {
-    const fieldName = Object.keys(orderByArg)[0];
-    const orderBySubField = orderByArg[fieldName];
-
-    if (!isDefined(orderBySubField)) {
+    fieldMetadata: FlatFieldMetadata;
+    orderByDirection: Record<string, unknown>;
+    isForwardPagination: boolean;
+  }): {
+    orderBy: Record<string, OrderByClause>;
+    joinInfo: RelationJoinInfo;
+  } | null {
+    if (!isDefined(fieldMetadata.relationTargetObjectMetadataId)) {
       return null;
     }
 
-    if (Object.keys(orderBySubField).length > 1) {
-      throw new UserInputError(
-        `Subfields must be provided one by one in orderBy array.`,
-      );
-    }
-
-    const subFieldName = Object.keys(orderBySubField)[0];
-
-    if (
-      !groupByFields.some(
-        (groupByField) =>
-          groupByField.fieldMetadata.id === fieldMetadata.id &&
-          groupByField.subFieldName === subFieldName,
-      )
-    ) {
-      throw new UserInputError(
-        `Cannot order by a field that is not in groupBy or that is not an aggregate field: ${subFieldName}`,
-      );
-    }
-
-    return parseCompositeFieldForOrder(
-      fieldMetadata,
-      orderBySubField,
-      objectMetadataItemWithFieldMaps.nameSingular,
-    );
-  };
-
-  parseObjectRecordOrderByWithGroupByDateField = ({
-    groupByFields,
-    orderByArg,
-    fieldMetadataId,
-  }: {
-    groupByFields: GroupByField[];
-    orderByArg: ObjectRecordOrderByWithGroupByDateField;
-    fieldMetadataId: string;
-  }): Record<string, OrderByCondition> | null => {
-    const orderByDirection = Object.values(orderByArg)[0]?.orderBy;
-
-    if (!isDefined(orderByDirection)) {
-      return null;
-    }
-
-    const granularity = Object.values(orderByArg)[0]?.granularity;
-
-    if (!isDefined(granularity)) {
-      throw new UserInputError(
-        `Missing date granularity for field ${Object.keys(orderByArg)[0]}`,
-      );
-    }
-
-    const associatedGroupByField = groupByFields.find(
-      (groupByField) =>
-        groupByField.fieldMetadata.id === fieldMetadataId &&
-        (groupByField as GroupByDateField).dateGranularity === granularity,
-    );
-
-    if (!isDefined(associatedGroupByField)) {
-      throw new UserInputError(
-        `Cannot order by a date granularity that is not in groupBy criteria: ${granularity}`,
-      );
-    }
-
-    const columnNameWithQuotes = `"${
-      formatColumnNamesFromCompositeFieldAndSubfields(
-        associatedGroupByField.fieldMetadata.name,
-        associatedGroupByField.subFieldName
-          ? [associatedGroupByField.subFieldName]
-          : undefined,
-      )[0]
-    }"`;
-
-    const expression = getGroupByExpression({
-      groupByField: associatedGroupByField,
-      columnNameWithQuotes,
+    const targetObjectMetadata = findFlatEntityByIdInFlatEntityMaps({
+      flatEntityId: fieldMetadata.relationTargetObjectMetadataId,
+      flatEntityMaps: this.flatObjectMetadataMaps,
     });
 
-    return {
-      [expression]: convertOrderByToFindOptionsOrder(orderByDirection),
+    if (!isDefined(targetObjectMetadata)) {
+      return null;
+    }
+
+    const nestedFieldName = Object.keys(orderByDirection)[0];
+    const nestedFieldOrderByValue = orderByDirection[nestedFieldName];
+
+    if (!isDefined(nestedFieldOrderByValue)) {
+      return null;
+    }
+
+    const { fieldIdByName: targetFieldIdByName } =
+      buildFieldMapsFromFlatObjectMetadata(
+        this.flatFieldMetadataMaps,
+        targetObjectMetadata,
+      );
+
+    const nestedFieldMetadataId = targetFieldIdByName[nestedFieldName];
+
+    if (!isDefined(nestedFieldMetadataId)) {
+      throw new GraphqlQueryRunnerException(
+        `Nested field "${nestedFieldName}" not found in target object "${targetObjectMetadata.nameSingular}"`,
+        GraphqlQueryRunnerExceptionCode.FIELD_NOT_FOUND,
+        { userFriendlyMessage: STANDARD_ERROR_MESSAGE },
+      );
+    }
+
+    const nestedFieldMetadata = findFlatEntityByIdInFlatEntityMaps({
+      flatEntityId: nestedFieldMetadataId,
+      flatEntityMaps: this.flatFieldMetadataMaps,
+    });
+
+    if (!isDefined(nestedFieldMetadata)) {
+      return null;
+    }
+
+    const joinAlias = fieldMetadata.name;
+
+    const joinInfo: RelationJoinInfo = {
+      joinAlias,
     };
-  };
+
+    if (isCompositeFieldMetadataType(nestedFieldMetadata.type)) {
+      if (!isObject(nestedFieldOrderByValue)) {
+        throw new GraphqlQueryRunnerException(
+          `Composite field "${nestedFieldMetadata.name}" requires a subfield to be specified`,
+          GraphqlQueryRunnerExceptionCode.INVALID_QUERY_INPUT,
+          { userFriendlyMessage: STANDARD_ERROR_MESSAGE },
+        );
+      }
+
+      const compositeOrder = parseCompositeFieldForOrder(
+        nestedFieldMetadata,
+        nestedFieldOrderByValue as Record<string, unknown>,
+        joinAlias,
+        isForwardPagination,
+      );
+
+      if (Object.keys(compositeOrder).length === 0) {
+        return null;
+      }
+
+      return {
+        orderBy: compositeOrder,
+        joinInfo,
+      };
+    }
+
+    if (isOrderByDirection(nestedFieldOrderByValue)) {
+      const columnExpression = buildOrderByColumnExpression(
+        joinAlias,
+        nestedFieldMetadata.name,
+      );
+
+      return {
+        orderBy: {
+          [columnExpression]: {
+            ...convertOrderByToFindOptionsOrder(
+              nestedFieldOrderByValue,
+              isForwardPagination,
+            ),
+            useLower: shouldUseCaseInsensitiveOrder(nestedFieldMetadata.type),
+            castToText: shouldCastToText(nestedFieldMetadata.type),
+          },
+        },
+        joinInfo,
+      };
+    }
+
+    return null;
+  }
 }

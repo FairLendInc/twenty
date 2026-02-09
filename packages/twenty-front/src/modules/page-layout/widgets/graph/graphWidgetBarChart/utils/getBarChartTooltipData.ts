@@ -1,64 +1,38 @@
 import { type GraphWidgetTooltipItem } from '@/page-layout/widgets/graph/components/GraphWidgetTooltip';
-import { type BarChartDataItem } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarChartDataItem';
+import { type BarChartDatum } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarChartDatum';
 import { type BarChartEnrichedKey } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarChartEnrichedKey';
+import { type BarChartSlice } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarChartSlice';
 import {
   formatGraphValue,
   type GraphValueFormatOptions,
 } from '@/page-layout/widgets/graph/utils/graphFormatters';
-import { type BarDatum, type ComputedDatum } from '@nivo/bar';
-import { isDefined } from 'twenty-shared/utils';
 
 type GetBarChartTooltipDataParameters = {
-  datum: ComputedDatum<BarDatum>;
+  slice: BarChartSlice;
+  dataByIndexValue: Map<string, BarChartDatum>;
   enrichedKeys: BarChartEnrichedKey[];
-  data: BarChartDataItem[];
-  indexBy: string;
   formatOptions: GraphValueFormatOptions;
-  enableGroupTooltip?: boolean;
-  layout?: 'vertical' | 'horizontal';
 };
 
 type BarChartTooltipData = {
   tooltipItems: GraphWidgetTooltipItem[];
   indexLabel: string;
-  hoveredKey: string | undefined;
-  linkTo: string | undefined;
 };
 
 export const getBarChartTooltipData = ({
-  datum,
+  slice,
+  dataByIndexValue,
   enrichedKeys,
-  data,
-  indexBy,
   formatOptions,
-  enableGroupTooltip = true,
-  layout = 'vertical',
 }: GetBarChartTooltipDataParameters): BarChartTooltipData | null => {
-  const dataItem = data.find(
-    (dataRow) => dataRow[indexBy] === datum.indexValue,
-  );
+  const dataRow = dataByIndexValue.get(slice.indexValue);
 
-  let keysToShow: BarChartEnrichedKey[];
-
-  if (enableGroupTooltip) {
-    keysToShow = enrichedKeys;
-  } else {
-    const hoveredKey = datum.id;
-    if (!isDefined(hoveredKey)) return null;
-
-    const enrichedKey = enrichedKeys.find(
-      (item) => item.key === String(hoveredKey),
-    );
-    if (!isDefined(enrichedKey)) return null;
-
-    keysToShow = [enrichedKey];
+  if (!dataRow) {
+    return null;
   }
 
-  const keysToProcess =
-    layout === 'vertical' ? [...keysToShow].reverse() : keysToShow;
-
-  const tooltipItems = keysToProcess.map((enrichedKey) => {
-    const seriesValue = Number(datum.data[enrichedKey.key] ?? 0);
+  const tooltipItems = enrichedKeys.map((enrichedKey) => {
+    const seriesValue = Number(dataRow[enrichedKey.key] ?? 0);
     return {
       key: enrichedKey.key,
       label: enrichedKey.label,
@@ -70,8 +44,6 @@ export const getBarChartTooltipData = ({
 
   return {
     tooltipItems,
-    indexLabel: String(datum.indexValue),
-    hoveredKey: enableGroupTooltip ? String(datum.id) : undefined,
-    linkTo: isDefined(dataItem?.to) ? String(dataItem.to) : undefined,
+    indexLabel: slice.indexValue,
   };
 };

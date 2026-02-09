@@ -5,13 +5,17 @@ import { useObjectPermissionsForObject } from '@/object-record/hooks/useObjectPe
 import { RecordBoardContext } from '@/object-record/record-board/contexts/RecordBoardContext';
 import { RecordBoardColumnDropdownMenu } from '@/object-record/record-board/record-board-column/components/RecordBoardColumnDropdownMenu';
 import { RecordBoardColumnHeaderAggregateDropdown } from '@/object-record/record-board/record-board-column/components/RecordBoardColumnHeaderAggregateDropdown';
+
+import { RECORD_BOARD_COLUMN_WIDTH } from '@/object-record/record-board/constants/RecordBoardColumnWidth';
 import { RecordBoardColumnContext } from '@/object-record/record-board/record-board-column/contexts/RecordBoardColumnContext';
-import { useAggregateRecordsForRecordBoardColumn } from '@/object-record/record-board/record-board-column/hooks/useAggregateRecordsForRecordBoardColumn';
 import { hasAnySoftDeleteFilterOnViewComponentSelector } from '@/object-record/record-filter/states/hasAnySoftDeleteFilterOnView';
 import { RecordGroupDefinitionType } from '@/object-record/record-group/types/RecordGroupDefinition';
+import { recordIndexAggregateDisplayLabelComponentState } from '@/object-record/record-index/states/recordIndexAggregateDisplayLabelComponentState';
+import { recordIndexAggregateDisplayValueForGroupValueComponentFamilyState } from '@/object-record/record-index/states/recordIndexAggregateDisplayValueForGroupValueComponentFamilyState';
 import { useCreateNewIndexRecord } from '@/object-record/record-table/hooks/useCreateNewIndexRecord';
 import { Dropdown } from '@/ui/layout/dropdown/components/Dropdown';
 import { useToggleDropdown } from '@/ui/layout/dropdown/hooks/useToggleDropdown';
+import { useRecoilComponentFamilyValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentFamilyValue';
 import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
 import { Tag } from 'twenty-ui/components';
 import { IconDotsVertical, IconPlus } from 'twenty-ui/display';
@@ -54,8 +58,8 @@ const StyledColumn = styled.div`
   background-color: ${({ theme }) => theme.background.primary};
   display: flex;
   flex-direction: column;
-  max-width: 200px;
-  min-width: 200px;
+  max-width: ${RECORD_BOARD_COLUMN_WIDTH}px;
+  min-width: ${RECORD_BOARD_COLUMN_WIDTH}px;
 
   padding: ${({ theme }) => theme.spacing(2)};
 
@@ -63,18 +67,23 @@ const StyledColumn = styled.div`
 `;
 
 const StyledTag = styled(Tag)`
-  flex-shrink: 0;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+`;
+
+const StyledDropdownContainer = styled.div`
+  min-width: 0;
+  overflow: hidden;
 `;
 
 export const RecordBoardColumnHeader = () => {
   const { columnDefinition } = useContext(RecordBoardColumnContext);
+
   const [isHeaderHovered, setIsHeaderHovered] = useState(false);
 
   const { objectMetadataItem, selectFieldMetadataItem } =
     useContext(RecordBoardContext);
-
-  const { aggregateValue, aggregateLabel } =
-    useAggregateRecordsForRecordBoardColumn();
 
   const objectPermissions = useObjectPermissionsForObject(
     objectMetadataItem.id,
@@ -90,9 +99,26 @@ export const RecordBoardColumnHeader = () => {
     objectMetadataItem: objectMetadataItem,
   });
 
+  const recordIndexAggregateDisplayValueForGroupValue =
+    useRecoilComponentFamilyValue(
+      recordIndexAggregateDisplayValueForGroupValueComponentFamilyState,
+      { groupValue: columnDefinition?.value ?? '' },
+    );
+
+  const recordIndexAggregateDisplayLabel = useRecoilComponentValue(
+    recordIndexAggregateDisplayLabelComponentState,
+  );
+
   const { toggleDropdown } = useToggleDropdown();
 
   const dropdownId = `record-board-column-dropdown-${columnDefinition.id}`;
+
+  const handleCreateNewRecordClick = async () => {
+    await createNewIndexRecord({
+      position: 'first',
+      [selectFieldMetadataItem.name]: columnDefinition.value,
+    });
+  };
 
   return (
     <StyledColumn>
@@ -102,41 +128,43 @@ export const RecordBoardColumnHeader = () => {
       >
         <StyledHeaderContainer>
           <StyledLeftContainer>
-            <Dropdown
-              dropdownId={dropdownId}
-              dropdownPlacement="bottom-start"
-              dropdownOffset={{
-                x: 0,
-                y: 10,
-              }}
-              clickableComponent={
-                <StyledTag
-                  variant={
-                    columnDefinition.type === RecordGroupDefinitionType.Value
-                      ? 'solid'
-                      : 'outline'
-                  }
-                  color={
-                    columnDefinition.type === RecordGroupDefinitionType.Value
-                      ? columnDefinition.color
-                      : 'transparent'
-                  }
-                  text={columnDefinition.title}
-                  weight={
-                    columnDefinition.type === RecordGroupDefinitionType.Value
-                      ? 'regular'
-                      : 'medium'
-                  }
-                />
-              }
-              dropdownComponents={<RecordBoardColumnDropdownMenu />}
-            />
+            <StyledDropdownContainer>
+              <Dropdown
+                dropdownId={dropdownId}
+                dropdownPlacement="bottom-start"
+                dropdownOffset={{
+                  x: 0,
+                  y: 10,
+                }}
+                clickableComponent={
+                  <StyledTag
+                    variant={
+                      columnDefinition.type === RecordGroupDefinitionType.Value
+                        ? 'solid'
+                        : 'outline'
+                    }
+                    color={
+                      columnDefinition.type === RecordGroupDefinitionType.Value
+                        ? columnDefinition.color
+                        : 'transparent'
+                    }
+                    text={columnDefinition.title}
+                    weight={
+                      columnDefinition.type === RecordGroupDefinitionType.Value
+                        ? 'regular'
+                        : 'medium'
+                    }
+                  />
+                }
+                dropdownComponents={<RecordBoardColumnDropdownMenu />}
+              />
+            </StyledDropdownContainer>
 
             <RecordBoardColumnHeaderAggregateDropdown
-              aggregateValue={aggregateValue}
+              aggregateValue={recordIndexAggregateDisplayValueForGroupValue}
               dropdownId={`record-board-column-aggregate-dropdown-${columnDefinition.id}`}
               objectMetadataItem={objectMetadataItem}
-              aggregateLabel={aggregateLabel}
+              aggregateLabel={recordIndexAggregateDisplayLabel}
             />
           </StyledLeftContainer>
           <StyledRightContainer>
@@ -156,13 +184,7 @@ export const RecordBoardColumnHeader = () => {
                     <LightIconButton
                       accent="tertiary"
                       Icon={IconPlus}
-                      onClick={() => {
-                        createNewIndexRecord({
-                          position: 'first',
-                          [selectFieldMetadataItem.name]:
-                            columnDefinition.value,
-                        });
-                      }}
+                      onClick={handleCreateNewRecordClick}
                     />
                   )}
               </StyledHeaderActions>

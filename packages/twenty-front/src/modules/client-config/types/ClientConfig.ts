@@ -33,9 +33,12 @@ export type ClientConfig = {
   isMultiWorkspaceEnabled: boolean;
   isImapSmtpCaldavEnabled: boolean;
   isEmailingDomainsEnabled: boolean;
+  isCloudflareIntegrationEnabled: boolean;
+  isClickHouseConfigured: boolean;
   publicFeatureFlags: Array<PublicFeatureFlag>;
   sentry: Sentry;
   signInPrefilled: boolean;
   support: Support;
   isTwoFactorAuthenticationEnabled: boolean;
+  allowRequestsToTwentyIcons: boolean;
 };

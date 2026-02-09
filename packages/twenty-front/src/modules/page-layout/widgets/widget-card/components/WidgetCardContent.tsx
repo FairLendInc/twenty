@@ -1,56 +1,42 @@
-import { type PageLayoutTabLayoutMode } from '@/page-layout/types/PageLayoutTabLayoutMode';
 import { css } from '@emotion/react';
 import styled from '@emotion/styled';
-import { type ReactNode } from 'react';
-import { type PageLayoutType } from '~/generated/graphql';
+import { type WidgetCardVariant } from '~/modules/page-layout/widgets/types/WidgetCardVariant';
 
-export type WidgetCardContentProps = {
-  children?: ReactNode;
-  pageLayoutType: PageLayoutType;
-  isInPinnedTab: boolean;
-  isPageLayoutInEditMode: boolean;
-  layoutMode: PageLayoutTabLayoutMode;
-  className?: string;
-};
-
-const StyledWidgetCardContent = styled.div<WidgetCardContentProps>`
-  align-items: center;
-  display: flex;
-  height: 100%;
-  width: 100%;
-  justify-content: center;
+const StyledWidgetCardContent = styled.div<{
+  variant: WidgetCardVariant;
+  hasHeader: boolean;
+  isEditable: boolean;
+}>`
   box-sizing: border-box;
-  padding: ${({ theme }) => theme.spacing(2)};
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
+  overflow: hidden;
 
-  ${({
-    theme,
-    pageLayoutType,
-    layoutMode,
-    isPageLayoutInEditMode,
-    isInPinnedTab,
-  }) => {
-    if (layoutMode === 'canvas') {
+  ${({ theme, hasHeader }) =>
+    hasHeader &&
+    css`
+      :not(:empty) {
+        margin-top: ${theme.spacing(2)};
+      }
+    `}
+
+  ${({ theme, variant, isEditable }) => {
+    if (variant === 'dashboard') {
       return css`
-        padding: 0;
+        padding: ${theme.spacing(2)};
       `;
     }
 
-    switch (pageLayoutType) {
-      case 'RECORD_PAGE':
-        return css`
-          border: 1px solid ${theme.border.color.medium};
-          border-radius: ${theme.border.radius.md};
-
-          ${isInPinnedTab &&
-          !isPageLayoutInEditMode &&
-          css`
-            border: none;
-            padding: 0;
-          `}
-        `;
-
-      default:
-        return '';
+    if (
+      variant === 'record-page' ||
+      (variant === 'side-column' && isEditable)
+    ) {
+      return css`
+        border: 1px solid ${theme.border.color.medium};
+        border-radius: ${theme.border.radius.md};
+        padding: ${theme.spacing(2)};
+      `;
     }
   }}
 `;

@@ -26,7 +26,7 @@ export const recomputeIndexOnFlatFieldMetadataNameUpdate = ({
   const objectFlatFieldMetadatas =
     findManyFlatEntityByIdInFlatEntityMapsOrThrow({
       flatEntityMaps: flatFieldMetadataMaps,
-      flatEntityIds: flatObjectMetadata.fieldMetadataIds,
+      flatEntityIds: flatObjectMetadata.fieldIds,
     });
   const optimisticObjectFlatFieldMetadatas = objectFlatFieldMetadatas.map(
     (flatFieldMetadata) => {
@@ -42,13 +42,11 @@ export const recomputeIndexOnFlatFieldMetadataNameUpdate = ({
     },
   );
 
-  return relatedFlatIndexMetadata.map<FlatIndexMetadata>((flatIndex) => {
-    const newIndex = generateFlatIndexMetadataWithNameOrThrow({
+  return relatedFlatIndexMetadata.map((flatIndex) =>
+    generateFlatIndexMetadataWithNameOrThrow({
       flatIndex,
       flatObjectMetadata,
       objectFlatFieldMetadatas: optimisticObjectFlatFieldMetadatas,
-    });
-
-    return newIndex;
-  });
+    }),
+  );
 };

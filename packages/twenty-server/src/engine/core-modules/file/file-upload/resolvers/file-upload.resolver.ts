@@ -1,9 +1,11 @@
 import { UseFilters, UseGuards, UsePipes } from '@nestjs/common';
 import { Args, Mutation, Resolver } from '@nestjs/graphql';
 
-import { FileUpload, GraphQLUpload } from 'graphql-upload';
+import GraphQLUpload from 'graphql-upload/GraphQLUpload.mjs';
+import { PermissionFlagType } from 'twenty-shared/constants';
+import { FileFolder } from 'twenty-shared/types';
 
-import { FileFolder } from 'src/engine/core-modules/file/interfaces/file-folder.interface';
+import type { FileUpload } from 'graphql-upload/processRequest.mjs';
 
 import { SignedFileDTO } from 'src/engine/core-modules/file/file-upload/dtos/signed-file.dto';
 import { FileUploadService } from 'src/engine/core-modules/file/file-upload/services/file-upload.service';
@@ -13,7 +15,6 @@ import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.ent
 import { AuthWorkspace } from 'src/engine/decorators/auth/auth-workspace.decorator';
 import { SettingsPermissionGuard } from 'src/engine/guards/settings-permission.guard';
 import { WorkspaceAuthGuard } from 'src/engine/guards/workspace-auth.guard';
-import { PermissionFlagType } from 'src/engine/metadata-modules/permissions/constants/permission-flag-type.constants';
 import { streamToBuffer } from 'src/utils/stream-to-buffer';
 
 @UseGuards(WorkspaceAuthGuard)
@@ -23,7 +24,9 @@ import { streamToBuffer } from 'src/utils/stream-to-buffer';
 export class FileUploadResolver {
   constructor(private readonly fileUploadService: FileUploadService) {}
 
-  @Mutation(() => SignedFileDTO)
+  @Mutation(() => SignedFileDTO, {
+    deprecationReason: 'Use uploadFilesFieldFile instead',
+  })
   @UseGuards(SettingsPermissionGuard(PermissionFlagType.UPLOAD_FILE))
   async uploadFile(
     @AuthWorkspace() { id: workspaceId }: WorkspaceEntity,

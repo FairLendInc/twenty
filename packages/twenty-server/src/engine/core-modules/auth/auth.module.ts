@@ -1,5 +1,3 @@
-/* eslint-disable no-restricted-imports */
-import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -8,6 +6,7 @@ import { ApiKeyEntity } from 'src/engine/core-modules/api-key/api-key.entity';
 import { ApiKeyModule } from 'src/engine/core-modules/api-key/api-key.module';
 import { AppTokenEntity } from 'src/engine/core-modules/app-token/app-token.entity';
 import { AppTokenService } from 'src/engine/core-modules/app-token/services/app-token.service';
+import { ApplicationEntity } from 'src/engine/core-modules/application/application.entity';
 import { ApplicationModule } from 'src/engine/core-modules/application/application.module';
 import { AuditModule } from 'src/engine/core-modules/audit/audit.module';
 import { GoogleAPIsAuthController } from 'src/engine/core-modules/auth/controllers/google-apis-auth.controller';
@@ -22,9 +21,6 @@ import { CreateMessageChannelService } from 'src/engine/core-modules/auth/servic
 import { GoogleAPIScopesService } from 'src/engine/core-modules/auth/services/google-apis-scopes';
 import { GoogleAPIsService } from 'src/engine/core-modules/auth/services/google-apis.service';
 import { MicrosoftAPIsService } from 'src/engine/core-modules/auth/services/microsoft-apis.service';
-import { ResetCalendarChannelService } from 'src/engine/core-modules/auth/services/reset-calendar-channel.service';
-import { ResetMessageChannelService } from 'src/engine/core-modules/auth/services/reset-message-channel.service';
-import { ResetMessageFolderService } from 'src/engine/core-modules/auth/services/reset-message-folder.service';
 import { ResetPasswordService } from 'src/engine/core-modules/auth/services/reset-password.service';
 import { SignInUpService } from 'src/engine/core-modules/auth/services/sign-in-up.service';
 import { UpdateConnectedAccountOnReconnectService } from 'src/engine/core-modules/auth/services/update-connected-account-on-reconnect.service';
@@ -48,6 +44,9 @@ import { MetricsModule } from 'src/engine/core-modules/metrics/metrics.module';
 import { OnboardingModule } from 'src/engine/core-modules/onboarding/onboarding.module';
 import { WorkspaceSSOModule } from 'src/engine/core-modules/sso/sso.module';
 import { WorkspaceSSOIdentityProviderEntity } from 'src/engine/core-modules/sso/workspace-sso-identity-provider.entity';
+import { SecureHttpClientService } from 'src/engine/core-modules/tool/services/secure-http-client.service';
+import { TwoFactorAuthenticationMethodEntity } from 'src/engine/core-modules/two-factor-authentication/entities/two-factor-authentication-method.entity';
+import { TwoFactorAuthenticationModule } from 'src/engine/core-modules/two-factor-authentication/two-factor-authentication.module';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 import { UserWorkspaceModule } from 'src/engine/core-modules/user-workspace/user-workspace.module';
 import { UserEntity } from 'src/engine/core-modules/user/user.entity';
@@ -59,13 +58,13 @@ import { DataSourceModule } from 'src/engine/metadata-modules/data-source/data-s
 import { ObjectMetadataEntity } from 'src/engine/metadata-modules/object-metadata/object-metadata.entity';
 import { PermissionsModule } from 'src/engine/metadata-modules/permissions/permissions.module';
 import { UserRoleModule } from 'src/engine/metadata-modules/user-role/user-role.module';
+import { WorkspaceCacheModule } from 'src/engine/workspace-cache/workspace-cache.module';
 import { WorkspaceDataSourceModule } from 'src/engine/workspace-datasource/workspace-datasource.module';
 import { WorkspaceManagerModule } from 'src/engine/workspace-manager/workspace-manager.module';
+import { CalendarChannelSyncStatusService } from 'src/modules/calendar/common/services/calendar-channel-sync-status.service';
 import { ConnectedAccountModule } from 'src/modules/connected-account/connected-account.module';
+import { MessageChannelSyncStatusService } from 'src/modules/messaging/common/services/message-channel-sync-status.service';
 import { MessagingFolderSyncManagerModule } from 'src/modules/messaging/message-folder-manager/messaging-folder-sync-manager.module';
-
-import { TwoFactorAuthenticationMethodEntity } from '../two-factor-authentication/entities/two-factor-authentication-method.entity';
-import { TwoFactorAuthenticationModule } from '../two-factor-authentication/two-factor-authentication.module';
 
 import { AuthResolver } from './auth.resolver';
 
@@ -87,6 +86,7 @@ import { JwtAuthStrategy } from './strategies/jwt.auth.strategy';
       UserEntity,
       AppTokenEntity,
       ApiKeyEntity,
+      ApplicationEntity,
       FeatureFlagEntity,
       WorkspaceSSOIdentityProviderEntity,
       KeyValuePairEntity,
@@ -94,7 +94,6 @@ import { JwtAuthStrategy } from './strategies/jwt.auth.strategy';
       TwoFactorAuthenticationMethodEntity,
       ObjectMetadataEntity,
     ]),
-    HttpModule,
     UserWorkspaceModule,
     WorkspaceModule,
     OnboardingModule,
@@ -115,6 +114,7 @@ import { JwtAuthStrategy } from './strategies/jwt.auth.strategy';
     SubdomainManagerModule,
     DomainServerConfigModule,
     ApplicationModule,
+    WorkspaceCacheModule,
   ],
   controllers: [
     GoogleAuthController,
@@ -140,16 +140,22 @@ import { JwtAuthStrategy } from './strategies/jwt.auth.strategy';
     // So far, it's not possible to have controllers in business modules
     // which forces us to have these services in the auth module
     // TODO: Move these calendar, message, and connected account services to the business modules once possible
-    ResetMessageChannelService,
-    ResetCalendarChannelService,
-    ResetMessageFolderService,
+    MessageChannelSyncStatusService,
+    CalendarChannelSyncStatusService,
     CreateMessageChannelService,
     CreateCalendarChannelService,
     CreateConnectedAccountService,
     UpdateConnectedAccountOnReconnectService,
     TransientTokenService,
     AuthSsoService,
+    SecureHttpClientService,
   ],
-  exports: [AccessTokenService, LoginTokenService, RefreshTokenService],
+  exports: [
+    AccessTokenService,
+    LoginTokenService,
+    RefreshTokenService,
+    CreateMessageChannelService,
+    CreateCalendarChannelService,
+  ],
 })
 export class AuthModule {}

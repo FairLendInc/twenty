@@ -1,8 +1,8 @@
 import { OBJECT_OPTIONS_DROPDOWN_ID } from '@/object-record/object-options-dropdown/constants/ObjectOptionsDropdownId';
 import { useObjectOptionsDropdown } from '@/object-record/object-options-dropdown/hooks/useObjectOptionsDropdown';
 import { useSetViewTypeFromLayoutOptionsMenu } from '@/object-record/object-options-dropdown/hooks/useSetViewTypeFromLayoutOptionsMenu';
-import { recordGroupFieldMetadataComponentState } from '@/object-record/record-group/states/recordGroupFieldMetadataComponentState';
 import { recordIndexCalendarLayoutState } from '@/object-record/record-index/states/recordIndexCalendarLayoutState';
+import { recordIndexGroupFieldMetadataItemComponentState } from '@/object-record/record-index/states/recordIndexGroupFieldMetadataComponentState';
 import { recordIndexOpenRecordInState } from '@/object-record/record-index/states/recordIndexOpenRecordInState';
 import { DropdownContent } from '@/ui/layout/dropdown/components/DropdownContent';
 import { DropdownMenuHeader } from '@/ui/layout/dropdown/components/DropdownMenuHeader/DropdownMenuHeader';
@@ -20,7 +20,7 @@ import { type GraphQLView } from '@/views/types/GraphQLView';
 import { ViewOpenRecordInType } from '@/views/types/ViewOpenRecordInType';
 import { ViewType, viewTypeIconMapping } from '@/views/types/ViewType';
 import { useGetAvailableFieldsForCalendar } from '@/views/view-picker/hooks/useGetAvailableFieldsForCalendar';
-import { useGetAvailableFieldsForKanban } from '@/views/view-picker/hooks/useGetAvailableFieldsForKanban';
+import { useGetAvailableFieldsToGroupRecordsBy } from '@/views/view-picker/hooks/useGetAvailableFieldsToGroupRecordsBy';
 import { useLingui } from '@lingui/react/macro';
 import { useCallback } from 'react';
 import { useRecoilValue } from 'recoil';
@@ -65,7 +65,7 @@ export const ObjectOptionsDropdownLayoutContent = () => {
     recordIndexCalendarLayoutState,
   );
   const recordGroupFieldMetadata = useRecoilComponentValue(
-    recordGroupFieldMetadataComponentState,
+    recordIndexGroupFieldMetadataItemComponentState,
   );
 
   const calendarFieldMetadata = currentView?.calendarFieldMetadataId
@@ -75,8 +75,8 @@ export const ObjectOptionsDropdownLayoutContent = () => {
     : undefined;
 
   const { setAndPersistViewType } = useSetViewTypeFromLayoutOptionsMenu();
-  const { availableFieldsForKanban, navigateToSelectSettings } =
-    useGetAvailableFieldsForKanban();
+  const { availableFieldsForGrouping, navigateToSelectSettings } =
+    useGetAvailableFieldsToGroupRecordsBy();
   const { availableFieldsForCalendar, navigateToDateFieldSettings } =
     useGetAvailableFieldsForCalendar();
   const { closeDropdown } = useCloseDropdown();
@@ -85,7 +85,7 @@ export const ObjectOptionsDropdownLayoutContent = () => {
     if (isDefaultView) {
       return;
     }
-    if (availableFieldsForKanban.length === 0) {
+    if (availableFieldsForGrouping.length === 0) {
       navigateToSelectSettings();
       closeDropdown(dropdownId);
       return;
@@ -200,7 +200,7 @@ export const ObjectOptionsDropdownLayoutContent = () => {
                         text={t`Not available for default view`}
                       />
                     </>
-                  ) : availableFieldsForKanban.length === 0 ? (
+                  ) : availableFieldsForGrouping.length === 0 ? (
                     t`Create Select...`
                   ) : undefined
                 }

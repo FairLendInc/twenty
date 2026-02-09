@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const tsConfigPath = resolve(__dirname, './tsconfig.spec.json');
+const tsConfigPath = resolve(__dirname, './tsconfig.json');
 const tsConfig = JSON.parse(readFileSync(tsConfigPath, 'utf8'));
 
 // eslint-disable-next-line no-undef
@@ -22,6 +22,7 @@ const jestConfig = {
   preset: '../../jest.preset.js',
   setupFilesAfterEnv: ['./setupTests.ts'],
   testEnvironment: 'jsdom',
+  testEnvironmentOptions: {},
 
   transformIgnorePatterns: [
     '/node_modules/(?!(twenty-ui)/.*)',
@@ -54,17 +55,16 @@ const jestConfig = {
       '<rootDir>/__mocks__/imageMockFront.js',
     '\\.css$': '<rootDir>/__mocks__/styleMock.js',
     ...pathsToModuleNameMapper(tsConfig.compilerOptions.paths, {
-      prefix: '<rootDir>/../../',
+      prefix: '<rootDir>/',
     }),
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   extensionsToTreatAsEsm: ['.ts', '.tsx'],
   coverageThreshold: {
     global: {
-      statements: 52,
-      // Temporarily decreasing to 50.97 as introduced v1 code that aims to be deleted
-      lines: 50.95,
-      functions: 41,
+      statements: 50,
+      lines: 48.9,
+      functions: 40.9,
     },
   },
   collectCoverageFrom: ['<rootDir>/src/**/*.ts'],

@@ -2,7 +2,7 @@ import { useRecoilCallback } from 'recoil';
 
 import { contextStoreCurrentViewIdComponentState } from '@/context-store/states/contextStoreCurrentViewIdComponentState';
 import { useRecoilComponentCallbackState } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentCallbackState';
-import { usePersistViewGroupRecords } from '@/views/hooks/internal/usePersistViewGroup';
+import { usePerformViewGroupAPIPersist } from '@/views/hooks/internal/usePerformViewGroupAPIPersist';
 import { useCanPersistViewChanges } from '@/views/hooks/useCanPersistViewChanges';
 import { useGetViewFromPrefetchState } from '@/views/hooks/useGetViewFromPrefetchState';
 import { type ViewGroup } from '@/views/types/ViewGroup';
@@ -12,7 +12,7 @@ import { isUndefinedOrNull } from '~/utils/isUndefinedOrNull';
 
 export const useSaveCurrentViewGroups = () => {
   const { canPersistChanges } = useCanPersistViewChanges();
-  const { createViewGroups, updateViewGroups } = usePersistViewGroupRecords();
+  const { performViewGroupAPIUpdate } = usePerformViewGroupAPIPersist();
 
   const { getViewFromPrefetchState } = useGetViewFromPrefetchState();
 
@@ -67,14 +67,13 @@ export const useSaveCurrentViewGroups = () => {
           return;
         }
 
-        await updateViewGroups([
+        await performViewGroupAPIUpdate([
           {
             input: {
               id: existingField.id,
               update: {
                 isVisible: viewGroupToSave.isVisible,
                 position: viewGroupToSave.position,
-                fieldMetadataId: viewGroupToSave.fieldMetadataId,
                 fieldValue: viewGroupToSave.fieldValue,
               },
             },
@@ -85,7 +84,7 @@ export const useSaveCurrentViewGroups = () => {
       canPersistChanges,
       currentViewIdCallbackState,
       getViewFromPrefetchState,
-      updateViewGroups,
+      performViewGroupAPIUpdate,
     ],
   );
 
@@ -144,7 +143,6 @@ export const useSaveCurrentViewGroups = () => {
                 update: {
                   isVisible: viewGroupToSave.isVisible,
                   position: viewGroupToSave.position,
-                  fieldMetadataId: viewGroupToSave.fieldMetadataId,
                   fieldValue: viewGroupToSave.fieldValue,
                 },
               },
@@ -152,30 +150,17 @@ export const useSaveCurrentViewGroups = () => {
           })
           .filter(isDefined);
 
-        const viewGroupsToCreate = viewGroupsToSave.filter(
-          (viewFieldToSave) =>
-            !currentViewGroups.some(
-              (currentViewGroup) =>
-                currentViewGroup.fieldValue === viewFieldToSave.fieldValue,
-            ),
-        );
+        if (!isDefined(view.mainGroupByFieldMetadataId)) {
+          throw new Error('mainGroupByFieldMetadataId is required');
+        }
 
-        await Promise.all([
-          createViewGroups({
-            inputs: viewGroupsToCreate.map(({ __typename, ...viewGroup }) => ({
-              ...viewGroup,
-              viewId: view.id,
-            })),
-          }),
-          updateViewGroups(viewGroupsToUpdate),
-        ]);
+        await performViewGroupAPIUpdate(viewGroupsToUpdate);
       },
     [
       canPersistChanges,
-      createViewGroups,
       currentViewIdCallbackState,
       getViewFromPrefetchState,
-      updateViewGroups,
+      performViewGroupAPIUpdate,
     ],
   );
 

@@ -25,20 +25,21 @@ export const convertCoreViewToView = (
     key: convertedKey,
     objectMetadataId: coreView.objectMetadataId,
     isCompact: coreView.isCompact,
-    viewFields: coreView.viewFields.map((viewField) =>
+    viewFields: coreView.viewFields?.map((viewField) =>
       convertCoreViewFieldToViewField(viewField),
     ),
-    viewGroups: coreView.viewGroups.map((viewGroup) =>
+    viewGroups: coreView.viewGroups?.map((viewGroup) =>
       convertCoreViewGroupToViewGroup(viewGroup),
     ),
-    viewFilters: coreView.viewFilters.map((viewFilter) =>
+    viewFilters: coreView.viewFilters?.map((viewFilter) =>
       convertCoreViewFilterToViewFilter(viewFilter),
     ),
     viewFilterGroups: coreView.viewFilterGroups?.map(
       convertCoreViewFilterGroupToViewFilterGroup,
     ),
     viewSorts: coreView.viewSorts,
-    kanbanFieldMetadataId: '',
+    mainGroupByFieldMetadataId: coreView.mainGroupByFieldMetadataId ?? null,
+    shouldHideEmptyGroups: coreView.shouldHideEmptyGroups,
     kanbanAggregateOperation: coreView.kanbanAggregateOperation ?? null,
     kanbanAggregateOperationFieldMetadataId:
       coreView.kanbanAggregateOperationFieldMetadataId ?? null,

@@ -3,12 +3,12 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { NodeEnvironment } from 'src/engine/core-modules/twenty-config/interfaces/node-environment.interface';
 import { SupportDriver } from 'src/engine/core-modules/twenty-config/interfaces/support.interface';
 
-import { AiModelRegistryService } from 'src/engine/core-modules/ai/services/ai-model-registry.service';
 import { CaptchaDriverType } from 'src/engine/core-modules/captcha/interfaces';
 import { ClientConfigService } from 'src/engine/core-modules/client-config/services/client-config.service';
 import { DomainServerConfigService } from 'src/engine/core-modules/domain/domain-server-config/services/domain-server-config.service';
 import { PUBLIC_FEATURE_FLAGS } from 'src/engine/core-modules/feature-flag/constants/public-feature-flag.const';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
+import { AiModelRegistryService } from 'src/engine/metadata-modules/ai/ai-models/services/ai-model-registry.service';
 
 describe('ClientConfigService', () => {
   let service: ClientConfigService;
@@ -86,7 +86,10 @@ describe('ClientConfigService', () => {
             MESSAGING_PROVIDER_GMAIL_ENABLED: true,
             CALENDAR_PROVIDER_GOOGLE_ENABLED: true,
             IS_CONFIG_VARIABLES_IN_DB_ENABLED: false,
+            IS_IMAP_SMTP_CALDAV_ENABLED: false,
             CALENDAR_BOOKING_PAGE_ID: 'team/twenty/talk-to-us',
+            CLOUDFLARE_API_KEY: undefined,
+            CLOUDFLARE_ZONE_ID: undefined,
           };
 
           return mockValues[key];
@@ -155,7 +158,10 @@ describe('ClientConfigService', () => {
         isGoogleMessagingEnabled: true,
         isGoogleCalendarEnabled: true,
         isConfigVariablesInDbEnabled: false,
+        isImapSmtpCaldavEnabled: false,
         calendarBookingPageId: 'team/twenty/talk-to-us',
+        isCloudflareIntegrationEnabled: false,
+        isClickHouseConfigured: false,
       });
     });
 

@@ -123,6 +123,9 @@ export const generateEmptyFieldValue = ({
     case FieldMetadataType.TS_VECTOR: {
       return null;
     }
+    case FieldMetadataType.FILES: {
+      return null;
+    }
     case FieldMetadataType.IMAGE:
     case FieldMetadataType.PDF: {
       return {

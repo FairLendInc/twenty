@@ -4,6 +4,7 @@ import { createEmptyFlatEntityMaps } from 'src/engine/metadata-modules/flat-enti
 import { type MetadataFlatEntityAndRelatedFlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/types/metadata-related-types.type';
 import { addFlatEntityToFlatEntityMapsOrThrow } from 'src/engine/metadata-modules/flat-entity/utils/add-flat-entity-to-flat-entity-maps-or-throw.util';
 import { deleteFlatEntityFromFlatEntityAndRelatedEntityMapsThroughMutationOrThrow } from 'src/engine/metadata-modules/flat-entity/utils/delete-flat-entity-from-flat-entity-and-related-entity-maps-through-mutation-or-throw.util';
+import { findFlatEntityByIdInFlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/utils/find-flat-entity-by-id-in-flat-entity-maps.util';
 import { getFlatFieldMetadataMock } from 'src/engine/metadata-modules/flat-field-metadata/__mocks__/get-flat-field-metadata.mock';
 import { type FlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata.type';
 import { getFlatObjectMetadataMock } from 'src/engine/metadata-modules/flat-object-metadata/__mocks__/get-flat-object-metadata.mock';
@@ -21,7 +22,7 @@ describe('deleteFlatEntityFromFlatEntityAndRelatedEntityMapsThroughMutationOrThr
       id: objectMetadataId,
       universalIdentifier: 'object-universal-1',
       viewIds: [viewId, 'something-else'],
-      fieldMetadataIds: [],
+      fieldIds: [],
       workspaceId,
       imageIdentifierFieldMetadataId: '20202020-9d65-415f-b0e1-216a2e257ea4',
       labelIdentifierFieldMetadataId: '20202020-1a62-405c-87fa-4d4fd215851b',
@@ -34,10 +35,10 @@ describe('deleteFlatEntityFromFlatEntityAndRelatedEntityMapsThroughMutationOrThr
       type: FieldMetadataType.DATE,
       universalIdentifier: 'field-universal-1',
       viewFieldIds: [],
-      viewGroupIds: [],
       viewFilterIds: [],
       workspaceId,
       calendarViewIds: [viewId],
+      mainGroupByFieldMetadataViewIds: [],
       applicationId,
     });
 
@@ -50,8 +51,8 @@ describe('deleteFlatEntityFromFlatEntityAndRelatedEntityMapsThroughMutationOrThr
       viewGroupIds: [],
       workspaceId,
       calendarFieldMetadataId: mockFieldMetadata.id,
-      createdAt: new Date('2024-01-01'),
-      updatedAt: new Date('2024-01-01'),
+      createdAt: new Date('2024-01-01').toISOString(),
+      updatedAt: new Date('2024-01-01').toISOString(),
       icon: 'icon',
       isCompact: false,
       name: 'View Name',
@@ -82,21 +83,26 @@ describe('deleteFlatEntityFromFlatEntityAndRelatedEntityMapsThroughMutationOrThr
     });
 
     expect(
-      flatEntityAndRelatedMapsToMutate.flatViewMaps.byId[viewId],
+      findFlatEntityByIdInFlatEntityMaps({
+        flatEntityId: viewId,
+        flatEntityMaps: flatEntityAndRelatedMapsToMutate.flatViewMaps,
+      }),
     ).toBeUndefined();
 
     expect(
-      flatEntityAndRelatedMapsToMutate.flatObjectMetadataMaps.byId[
-        objectMetadataId
-      ],
+      findFlatEntityByIdInFlatEntityMaps({
+        flatEntityId: objectMetadataId,
+        flatEntityMaps: flatEntityAndRelatedMapsToMutate.flatObjectMetadataMaps,
+      }),
     ).toMatchObject<Partial<FlatObjectMetadata>>({
       viewIds: ['something-else'],
     });
 
     expect(
-      flatEntityAndRelatedMapsToMutate.flatFieldMetadataMaps.byId[
-        mockFieldMetadata.id
-      ],
+      findFlatEntityByIdInFlatEntityMaps({
+        flatEntityId: mockFieldMetadata.id,
+        flatEntityMaps: flatEntityAndRelatedMapsToMutate.flatFieldMetadataMaps,
+      }),
     ).toMatchObject<Partial<FlatFieldMetadata>>({
       calendarViewIds: [],
     });

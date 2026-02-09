@@ -3,6 +3,9 @@ import { useLingui } from '@lingui/react/macro';
 import { useState } from 'react';
 
 import { SettingsTextInput } from '@/ui/input/components/SettingsTextInput';
+import { Dropdown } from '@/ui/layout/dropdown/components/Dropdown';
+import { DropdownContent } from '@/ui/layout/dropdown/components/DropdownContent';
+import { DropdownMenuItemsContainer } from '@/ui/layout/dropdown/components/DropdownMenuItemsContainer';
 import { SortableTableHeader } from '@/ui/layout/table/components/SortableTableHeader';
 import { Table } from '@/ui/layout/table/components/Table';
 import { TableHeader } from '@/ui/layout/table/components/TableHeader';
@@ -10,21 +13,33 @@ import { useSortedArray } from '@/ui/layout/table/hooks/useSortedArray';
 import { useTheme } from '@emotion/react';
 import { SettingsPath } from 'twenty-shared/types';
 import { getSettingsPath } from 'twenty-shared/utils';
-import { H2Title, IconChevronRight, IconSearch } from 'twenty-ui/display';
+import {
+  IconChevronRight,
+  IconFilter,
+  IconSearch,
+  IconSettingsAutomation,
+} from 'twenty-ui/display';
+import { Button } from 'twenty-ui/input';
+import { MenuItemToggle } from 'twenty-ui/navigation';
 import { SETTINGS_AI_AGENT_TABLE_METADATA } from '~/pages/settings/ai/constants/SettingsAiAgentTableMetadata';
 import { normalizeSearchText } from '~/utils/normalizeSearchText';
 
 import Skeleton from 'react-loading-skeleton';
-import { Section } from 'twenty-ui/layout';
 import { useFindManyAgentsQuery } from '~/generated-metadata/graphql';
 import {
   SettingsAIAgentTableRow,
   StyledAIAgentTableRow,
 } from './SettingsAIAgentTableRow';
 
-const StyledSearchInput = styled(SettingsTextInput)`
-  padding-bottom: ${({ theme }) => theme.spacing(2)};
+const StyledSearchAndFilterContainer = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing(2)};
+  margin-bottom: ${({ theme }) => theme.spacing(2)};
   width: 100%;
+`;
+
+const StyledSearchInput = styled(SettingsTextInput)`
+  flex: 1;
 `;
 
 const StyledTable = styled(Table)`
@@ -35,16 +50,13 @@ const StyledTableHeaderRow = styled(StyledAIAgentTableRow)`
   margin-bottom: ${({ theme }) => theme.spacing(2)};
 `;
 
-export const SettingsAIAgentsTable = ({
-  withSearchBar = false,
-}: {
-  withSearchBar?: boolean;
-}) => {
+export const SettingsAIAgentsTable = () => {
   const { data, loading } = useFindManyAgentsQuery();
 
   const { t } = useLingui();
   const theme = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
+  const [showWorkflowAgents, setShowWorkflowAgents] = useState(false);
 
   const sortedAgents = useSortedArray(
     data?.findManyAgents || [],
@@ -52,21 +64,20 @@ export const SettingsAIAgentsTable = ({
   );
 
   const filteredAgents = sortedAgents.filter((agent) => {
+    const isWorkflowAgent = agent.name.includes('workflow-service-agent');
+    const matchesType = !isWorkflowAgent || showWorkflowAgents;
+
     const searchNormalized = normalizeSearchText(searchTerm);
-    return (
+    const matchesSearch =
       normalizeSearchText(agent.name).includes(searchNormalized) ||
-      normalizeSearchText(agent.label).includes(searchNormalized)
-    );
+      normalizeSearchText(agent.label).includes(searchNormalized);
+
+    return matchesType && matchesSearch;
   });
 
   return (
-    <Section>
-      <H2Title
-        title={t`Agents`}
-        description={t`Agents used to route queries to specialized agents`}
-      />
-
-      {withSearchBar && (
+    <>
+      <StyledSearchAndFilterContainer>
         <StyledSearchInput
           instanceId="settings-ai-agents-search"
           LeftIcon={IconSearch}
@@ -74,7 +85,36 @@ export const SettingsAIAgentsTable = ({
           value={searchTerm}
           onChange={setSearchTerm}
         />
-      )}
+        <Dropdown
+          dropdownId="settings-ai-agents-filter-dropdown"
+          dropdownPlacement="bottom-end"
+          dropdownOffset={{ x: 0, y: 8 }}
+          clickableComponent={
+            <Button
+              Icon={IconFilter}
+              size="medium"
+              variant="secondary"
+              accent="default"
+              ariaLabel={t`Filter`}
+            />
+          }
+          dropdownComponents={
+            <DropdownContent>
+              <DropdownMenuItemsContainer>
+                <MenuItemToggle
+                  LeftIcon={IconSettingsAutomation}
+                  onToggleChange={() =>
+                    setShowWorkflowAgents(!showWorkflowAgents)
+                  }
+                  toggled={showWorkflowAgents}
+                  text={t`Workflow agents`}
+                  toggleSize="small"
+                />
+              </DropdownMenuItemsContainer>
+            </DropdownContent>
+          }
+        />
+      </StyledSearchAndFilterContainer>
 
       <StyledTable>
         <StyledTableHeaderRow>
@@ -112,6 +152,6 @@ export const SettingsAIAgentsTable = ({
           />
         ))}
       </StyledTable>
-    </Section>
+    </>
   );
 };

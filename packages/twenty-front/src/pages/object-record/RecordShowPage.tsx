@@ -5,12 +5,13 @@ import { ActionMenuComponentInstanceContext } from '@/action-menu/states/context
 import { TimelineActivityContext } from '@/activities/timeline-activities/contexts/TimelineActivityContext';
 import { MAIN_CONTEXT_STORE_INSTANCE_ID } from '@/context-store/constants/MainContextStoreInstanceId';
 import { ContextStoreComponentInstanceContext } from '@/context-store/states/contexts/ContextStoreComponentInstanceContext';
+import { MainContainerLayoutWithCommandMenu } from '@/object-record/components/MainContainerLayoutWithCommandMenu';
 import { RecordComponentInstanceContextsWrapper } from '@/object-record/components/RecordComponentInstanceContextsWrapper';
 import { PageLayoutDispatcher } from '@/object-record/record-show/components/PageLayoutDispatcher';
+import { RecordShowPageSSESubscribeEffect } from '@/object-record/record-show/components/RecordShowPageSSESubscribeEffect';
 import { useRecordShowPage } from '@/object-record/record-show/hooks/useRecordShowPage';
 import { computeRecordShowComponentInstanceId } from '@/object-record/record-show/utils/computeRecordShowComponentInstanceId';
 import { PageHeaderToggleCommandMenuButton } from '@/ui/layout/page-header/components/PageHeaderToggleCommandMenuButton';
-import { PageBody } from '@/ui/layout/page/components/PageBody';
 import { PageContainer } from '@/ui/layout/page/components/PageContainer';
 import { RecordShowPageHeader } from '~/pages/object-record/RecordShowPageHeader';
 import { RecordShowPageTitle } from '~/pages/object-record/RecordShowPageTitle';
@@ -51,7 +52,7 @@ export const RecordShowPage = () => {
               <RecordShowActionMenu />
               <PageHeaderToggleCommandMenuButton />
             </RecordShowPageHeader>
-            <PageBody>
+            <MainContainerLayoutWithCommandMenu>
               <TimelineActivityContext.Provider
                 value={{
                   recordId: objectRecordId,
@@ -63,8 +64,12 @@ export const RecordShowPage = () => {
                     targetObjectNameSingular: objectNameSingular,
                   }}
                 />
+                <RecordShowPageSSESubscribeEffect
+                  objectNameSingular={objectNameSingular}
+                  recordId={objectRecordId}
+                />
               </TimelineActivityContext.Provider>
-            </PageBody>
+            </MainContainerLayoutWithCommandMenu>
           </PageContainer>
         </ActionMenuComponentInstanceContext.Provider>
       </ContextStoreComponentInstanceContext.Provider>

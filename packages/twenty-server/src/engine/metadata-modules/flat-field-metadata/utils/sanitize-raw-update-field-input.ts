@@ -2,6 +2,7 @@ import {
   extractAndSanitizeObjectStringFields,
   isDefined,
 } from 'twenty-shared/utils';
+import { v4 } from 'uuid';
 
 import { FIELD_METADATA_STANDARD_OVERRIDES_PROPERTIES } from 'src/engine/metadata-modules/field-metadata/constants/field-metadata-standard-overrides-properties.constant';
 import { type UpdateFieldInput } from 'src/engine/metadata-modules/field-metadata/dtos/update-field.input';
@@ -12,17 +13,19 @@ import {
 import { FLAT_FIELD_METADATA_EDITABLE_PROPERTIES } from 'src/engine/metadata-modules/flat-field-metadata/constants/flat-field-metadata-editable-properties.constant';
 import { type FlatFieldMetadataEditableProperties } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata-editable-properties.constant';
 import { type FlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata.type';
-import { isStandardMetadata } from 'src/engine/metadata-modules/utils/is-standard-metadata.util';
+import { belongsToTwentyStandardApp } from 'src/engine/metadata-modules/utils/belongs-to-twenty-standard-app.util';
 
 type SanitizeRawUpdateFieldInputArgs = {
   rawUpdateFieldInput: UpdateFieldInput;
   existingFlatFieldMetadata: FlatFieldMetadata;
+  isSystemBuild: boolean;
 };
 export const sanitizeRawUpdateFieldInput = ({
   existingFlatFieldMetadata,
   rawUpdateFieldInput,
+  isSystemBuild,
 }: SanitizeRawUpdateFieldInputArgs) => {
-  const isStandardField = isStandardMetadata(existingFlatFieldMetadata);
+  const isStandardField = belongsToTwentyStandardApp(existingFlatFieldMetadata);
   const updatedEditableFieldProperties = extractAndSanitizeObjectStringFields(
     rawUpdateFieldInput,
     [
@@ -33,7 +36,16 @@ export const sanitizeRawUpdateFieldInput = ({
     ],
   );
 
-  if (!isStandardField) {
+  updatedEditableFieldProperties.options = !isDefined(
+    updatedEditableFieldProperties.options,
+  )
+    ? updatedEditableFieldProperties.options
+    : updatedEditableFieldProperties.options.map((option) => ({
+        id: v4(),
+        ...option,
+      }));
+
+  if (!isStandardField || isSystemBuild) {
     return {
       updatedEditableFieldProperties,
       standardOverrides: null,

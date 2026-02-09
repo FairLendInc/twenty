@@ -1,9 +1,8 @@
-import { type LineChartSeries } from '@/page-layout/widgets/graph/graphWidgetLineChart/types/LineChartSeries';
+import { type LineChartSeriesWithColor } from '@/page-layout/widgets/graph/graphWidgetLineChart/types/LineChartSeriesWithColor';
 import { type GraphColorScheme } from '@/page-layout/widgets/graph/types/GraphColorScheme';
 
-export type LineChartEnrichedSeries = LineChartSeries & {
+export type LineChartEnrichedSeries = LineChartSeriesWithColor & {
   colorScheme: GraphColorScheme;
-  gradientId: string;
-  shouldEnableArea: boolean;
+  areaFillId: string;
   label: string;
 };

@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { ApplicationModule } from 'src/engine/core-modules/application/application.module';
 import { I18nModule } from 'src/engine/core-modules/i18n/i18n.module';
+import { WorkspaceManyOrAllFlatEntityMapsCacheModule } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.module';
 import { PermissionsModule } from 'src/engine/metadata-modules/permissions/permissions.module';
 import { ViewFieldEntity } from 'src/engine/metadata-modules/view-field/entities/view-field.entity';
 import { ViewFilterGroupEntity } from 'src/engine/metadata-modules/view-filter-group/entities/view-filter-group.entity';
@@ -37,6 +39,7 @@ import { ViewSortEntity } from 'src/engine/metadata-modules/view-sort/entities/v
 import { ViewEntity } from 'src/engine/metadata-modules/view/entities/view.entity';
 import { ViewService } from 'src/engine/metadata-modules/view/services/view.service';
 import { WorkspaceCacheStorageModule } from 'src/engine/workspace-cache-storage/workspace-cache-storage.module';
+import { WorkspaceMigrationModule } from 'src/engine/workspace-manager/workspace-migration/workspace-migration.module';
 
 @Module({
   imports: [
@@ -48,9 +51,12 @@ import { WorkspaceCacheStorageModule } from 'src/engine/workspace-cache-storage/
       ViewGroupEntity,
       ViewSortEntity,
     ]),
+    ApplicationModule,
     I18nModule,
     PermissionsModule,
     WorkspaceCacheStorageModule,
+    WorkspaceManyOrAllFlatEntityMapsCacheModule,
+    WorkspaceMigrationModule,
   ],
   providers: [
     ViewService,

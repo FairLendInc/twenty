@@ -1,22 +1,15 @@
 import { type PageLayoutTabLayoutMode } from '@/page-layout/types/PageLayoutTabLayoutMode';
-import { type RulesLogic } from 'json-logic-js';
-import { type ModifiedProperties, type Nullable } from 'twenty-shared/types';
-import {
-  type PageLayoutTab as PageLayoutTabGenerated,
-  type PageLayoutWidget,
-} from '~/generated/graphql';
+import { type PageLayoutWidget } from '@/page-layout/types/PageLayoutWidget';
+import { type PageLayoutTab as PageLayoutTabGenerated } from '~/generated/graphql';
 
-export type PageLayoutTab = Omit<PageLayoutTabGenerated, 'widgets'> & {
-  widgets: ModifiedProperties<
-    PageLayoutWidget,
-    {
-      objectMetadataId?: Nullable<string>;
-      conditionalDisplay?: RulesLogic;
-    }
-  >[];
+export type PageLayoutTab = Omit<
+  PageLayoutTabGenerated,
+  'widgets' | 'layoutMode'
+> & {
+  widgets: PageLayoutWidget[];
   /**
    * Only available behind IS_RECORD_PAGE_LAYOUT_ENABLED for now.
    */
   layoutMode?: PageLayoutTabLayoutMode;
-  icon?: string;
+  icon?: string | null;
 };

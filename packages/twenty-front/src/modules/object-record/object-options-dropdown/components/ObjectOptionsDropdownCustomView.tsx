@@ -2,8 +2,8 @@ import { ObjectOptionsDropdownMenuViewName } from '@/object-record/object-option
 import { OBJECT_OPTIONS_DROPDOWN_ID } from '@/object-record/object-options-dropdown/constants/ObjectOptionsDropdownId';
 import { useObjectOptionsDropdown } from '@/object-record/object-options-dropdown/hooks/useObjectOptionsDropdown';
 import { useObjectOptionsForBoard } from '@/object-record/object-options-dropdown/hooks/useObjectOptionsForBoard';
-import { recordGroupFieldMetadataComponentState } from '@/object-record/record-group/states/recordGroupFieldMetadataComponentState';
 import { recordIndexCalendarLayoutState } from '@/object-record/record-index/states/recordIndexCalendarLayoutState';
+import { recordIndexGroupFieldMetadataItemComponentState } from '@/object-record/record-index/states/recordIndexGroupFieldMetadataComponentState';
 import { DropdownContent } from '@/ui/layout/dropdown/components/DropdownContent';
 import { DropdownMenuItemsContainer } from '@/ui/layout/dropdown/components/DropdownMenuItemsContainer';
 import { DropdownMenuSeparator } from '@/ui/layout/dropdown/components/DropdownMenuSeparator';
@@ -16,7 +16,7 @@ import { useSetRecoilComponentState } from '@/ui/utilities/state/component-state
 import { useGetCurrentViewOnly } from '@/views/hooks/useGetCurrentViewOnly';
 import { ViewKey } from '@/views/types/ViewKey';
 import { ViewType, viewTypeIconMapping } from '@/views/types/ViewType';
-import { useDeleteViewFromCurrentState } from '@/views/view-picker/hooks/useDeleteViewFromCurrentState';
+import { useDestroyViewFromCurrentState } from '@/views/view-picker/hooks/useDestroyViewFromCurrentState';
 import { viewPickerReferenceViewIdComponentState } from '@/views/view-picker/states/viewPickerReferenceViewIdComponentState';
 import { useLingui } from '@lingui/react/macro';
 import { useRecoilValue } from 'recoil';
@@ -50,12 +50,12 @@ export const ObjectOptionsDropdownCustomView = ({
     ? {
         ...currentView,
         key: ViewKey.Custom,
-        name: currentView.name || 'Custom View',
+        name: currentView.name || t`Custom View`,
       }
     : null;
 
   const recordGroupFieldMetadata = useRecoilComponentValue(
-    recordGroupFieldMetadataComponentState,
+    recordIndexGroupFieldMetadataItemComponentState,
   );
 
   const calendarFieldMetadata = currentView?.calendarFieldMetadataId
@@ -76,7 +76,9 @@ export const ObjectOptionsDropdownCustomView = ({
     viewBarId: recordIndexId,
   });
 
-  const { deleteViewFromCurrentState } = useDeleteViewFromCurrentState();
+  const visibleFieldsCount = visibleBoardFields.length;
+
+  const { destroyViewFromCurrentState } = useDestroyViewFromCurrentState();
   const setViewPickerReferenceViewId = useSetRecoilComponentState(
     viewPickerReferenceViewIdComponentState,
   );
@@ -86,7 +88,7 @@ export const ObjectOptionsDropdownCustomView = ({
       return;
     }
     setViewPickerReferenceViewId(customViewData?.id);
-    deleteViewFromCurrentState();
+    destroyViewFromCurrentState();
     closeDropdown();
     onBackToDefault?.();
   };
@@ -211,7 +213,7 @@ export const ObjectOptionsDropdownCustomView = ({
               onClick={() => onContentChange('fields')}
               LeftIcon={IconListDetails}
               text={t`Fields`}
-              contextualText={`${visibleBoardFields.length} shown`}
+              contextualText={t`${visibleFieldsCount} shown`}
               contextualTextPosition="right"
               hasSubMenu
             />

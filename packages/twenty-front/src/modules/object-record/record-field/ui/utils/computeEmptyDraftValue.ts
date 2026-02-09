@@ -50,7 +50,7 @@ export const computeEmptyDraftValue = <FieldValue>({
       addressState: '',
       addressCountry: '',
       addressPostcode: '',
-    } as FieldInputDraftValue<FieldValue>;
+    } as unknown as FieldInputDraftValue<FieldValue>;
   }
 
   if (isFieldCurrency(fieldDefinition)) {

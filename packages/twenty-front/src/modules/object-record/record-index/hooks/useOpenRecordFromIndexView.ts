@@ -1,3 +1,4 @@
+import { useCommandMenu } from '@/command-menu/hooks/useCommandMenu';
 import { useOpenRecordInCommandMenu } from '@/command-menu/hooks/useOpenRecordInCommandMenu';
 import { MAIN_CONTEXT_STORE_INSTANCE_ID } from '@/context-store/constants/MainContextStoreInstanceId';
 import { contextStoreRecordShowParentViewComponentState } from '@/context-store/states/contextStoreRecordShowParentViewComponentState';
@@ -11,6 +12,7 @@ import { useRecoilComponentCallbackState } from '@/ui/utilities/state/component-
 import { ViewOpenRecordInType } from '@/views/types/ViewOpenRecordInType';
 import { useRecoilCallback } from 'recoil';
 import { AppPath } from 'twenty-shared/types';
+import { useIsMobile } from 'twenty-ui/utilities';
 import { useNavigateApp } from '~/hooks/useNavigateApp';
 
 export const useOpenRecordFromIndexView = () => {
@@ -20,6 +22,8 @@ export const useOpenRecordFromIndexView = () => {
 
   const navigate = useNavigateApp();
   const { openRecordInCommandMenu } = useOpenRecordInCommandMenu();
+
+  const isMobile = useIsMobile();
 
   const currentRecordFilters = useRecoilComponentCallbackState(
     currentRecordFiltersComponentState,
@@ -35,6 +39,8 @@ export const useOpenRecordFromIndexView = () => {
     currentRecordFilterGroupsComponentState,
     recordIndexId,
   );
+
+  const { closeCommandMenu } = useCommandMenu();
 
   const openRecordFromIndexView = useRecoilCallback(
     ({ snapshot, set }) =>
@@ -69,6 +75,7 @@ export const useOpenRecordFromIndexView = () => {
         );
 
         if (
+          !isMobile &&
           recordIndexOpenRecordIn === ViewOpenRecordInType.SIDE_PANEL &&
           canOpenObjectInSidePanel(objectNameSingular)
         ) {
@@ -78,6 +85,7 @@ export const useOpenRecordFromIndexView = () => {
             resetNavigationStack: true,
           });
         } else {
+          closeCommandMenu();
           navigate(AppPath.RecordShowPage, {
             objectNameSingular,
             objectRecordId: recordId,
@@ -92,6 +100,8 @@ export const useOpenRecordFromIndexView = () => {
       objectNameSingular,
       navigate,
       openRecordInCommandMenu,
+      isMobile,
+      closeCommandMenu,
     ],
   );
 

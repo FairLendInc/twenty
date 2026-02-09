@@ -1,12 +1,15 @@
 //TODO:
 import { type FieldMetadataTypesToTestForCreateInputValidation } from 'test/integration/graphql/suites/inputs-validation/types/field-metadata-type-to-test';
-import { TEST_TARGET_OBJECT_RECORD_ID_FIELD_VALUE } from 'test/integration/graphql/suites/inputs-validation/utils/setup-test-objects-with-all-field-types.util';
+import {
+  joinColumnNameForManyToOneMorphRelationField1,
+  TEST_TARGET_OBJECT_RECORD_ID_FIELD_VALUE,
+} from 'test/integration/graphql/suites/inputs-validation/utils/setup-test-objects-with-all-field-types.util';
 import { FieldMetadataType } from 'twenty-shared/types';
 
 export const successfulCreateInputByFieldMetadataType: {
   [K in Exclude<
     FieldMetadataTypesToTestForCreateInputValidation,
-    FieldMetadataType.RICH_TEXT
+    FieldMetadataType.RICH_TEXT | FieldMetadataType.FILES // Done in files-field-sync.integration-spec.ts
   >]: {
     input: any;
     validateInput: (record: Record<string, any>) => boolean;
@@ -121,6 +124,28 @@ export const successfulCreateInputByFieldMetadataType: {
       },
     },
   ],
+  [FieldMetadataType.MORPH_RELATION]: [
+    {
+      input: {
+        [joinColumnNameForManyToOneMorphRelationField1]:
+          TEST_TARGET_OBJECT_RECORD_ID_FIELD_VALUE,
+      },
+      validateInput: (record: Record<string, any>) => {
+        return (
+          record[joinColumnNameForManyToOneMorphRelationField1] ===
+          TEST_TARGET_OBJECT_RECORD_ID_FIELD_VALUE
+        );
+      },
+    },
+    {
+      input: {
+        [joinColumnNameForManyToOneMorphRelationField1]: null,
+      },
+      validateInput: (record: Record<string, any>) => {
+        return record[joinColumnNameForManyToOneMorphRelationField1] === null;
+      },
+    },
+  ],
   [FieldMetadataType.RAW_JSON]: [
     {
       input: {
@@ -135,7 +160,7 @@ export const successfulCreateInputByFieldMetadataType: {
         rawJsonField: {},
       },
       validateInput: (record: Record<string, any>) => {
-        return Object.keys(record.rawJsonField).length === 0;
+        return record.rawJsonField === null;
       },
     },
     {
@@ -183,7 +208,9 @@ export const successfulCreateInputByFieldMetadataType: {
         arrayField: [],
       },
       validateInput: (record: Record<string, any>) => {
-        return record.arrayField.length === 0;
+        return (
+          Array.isArray(record.arrayField) && record.arrayField.length === 0
+        );
       },
     },
     {
@@ -191,7 +218,9 @@ export const successfulCreateInputByFieldMetadataType: {
         arrayField: null,
       },
       validateInput: (record: Record<string, any>) => {
-        return record.arrayField === null;
+        return (
+          Array.isArray(record.arrayField) && record.arrayField.length === 0
+        );
       },
     },
   ],
@@ -230,7 +259,10 @@ export const successfulCreateInputByFieldMetadataType: {
         multiSelectField: [],
       },
       validateInput: (record: Record<string, any>) => {
-        return record.multiSelectField.length === 0;
+        return (
+          Array.isArray(record.multiSelectField) &&
+          record.multiSelectField.length === 0
+        );
       },
     },
     {
@@ -238,7 +270,10 @@ export const successfulCreateInputByFieldMetadataType: {
         multiSelectField: null,
       },
       validateInput: (record: Record<string, any>) => {
-        return record.multiSelectField === null;
+        return (
+          Array.isArray(record.multiSelectField) &&
+          record.multiSelectField.length === 0
+        );
       },
     },
   ],
@@ -438,6 +473,40 @@ export const successfulCreateInputByFieldMetadataType: {
           record.richTextV2Field.blocknote === 'test' &&
           record.richTextV2Field.markdown === 'test'
         );
+      },
+    },
+  ],
+  [FieldMetadataType.POSITION]: [
+    {
+      input: {
+        position: 1000,
+      },
+      validateInput: (record: Record<string, any>) => {
+        return record.position === 1000;
+      },
+    },
+    {
+      input: {
+        position: 'last',
+      },
+      validateInput: (record: Record<string, any>) => {
+        return record.position > 1000;
+      },
+    },
+    {
+      input: {
+        position: 'first',
+      },
+      validateInput: (record: Record<string, any>) => {
+        return record.position < 1000;
+      },
+    },
+    {
+      input: {
+        position: undefined,
+      },
+      validateInput: (record: Record<string, any>) => {
+        return typeof record.position === 'number';
       },
     },
   ],

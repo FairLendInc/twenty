@@ -1,6 +1,9 @@
+import { useObjectMetadataItems } from '@/object-metadata/hooks/useObjectMetadataItems';
 import { Select } from '@/ui/input/components/Select';
+import { useIsMobile } from '@/ui/utilities/responsive/hooks/useIsMobile';
+import styled from '@emotion/styled';
+import { t } from '@lingui/core/macro';
 import { isDefined } from 'twenty-shared/utils';
-import { IconButton, type SelectOption } from 'twenty-ui/input';
 import {
   IconBox,
   IconNorthStar,
@@ -8,12 +11,10 @@ import {
   IconTrash,
   useIcons,
 } from 'twenty-ui/display';
-import { useIsMobile } from '@/ui/utilities/responsive/hooks/useIsMobile';
-import styled from '@emotion/styled';
-import { useObjectMetadataItems } from '@/object-metadata/hooks/useObjectMetadataItems';
+import { IconButton, type SelectOption } from 'twenty-ui/input';
 
-const OBJECT_DROPDOWN_WIDTH = 340;
-const ACTION_DROPDOWN_WIDTH = 140;
+const OBJECT_DROPDOWN_WIDTH = 240;
+const ACTION_DROPDOWN_WIDTH = 240;
 const OBJECT_MOBILE_WIDTH = 150;
 const ACTION_MOBILE_WIDTH = 140;
 
@@ -39,7 +40,7 @@ export const SettingsDatabaseEventsForm = ({
   removeOperation,
   disabled = false,
 }: {
-  events: { object: string | null; action: string }[];
+  events: { object: string | null; action: string; updatedFields?: string[] }[];
   updateOperation?: (
     index: number,
     field: 'object' | 'action',
@@ -55,7 +56,7 @@ export const SettingsDatabaseEventsForm = ({
   const { getIcon } = useIcons();
 
   const objectOptions: SelectOption<string>[] = [
-    { label: 'All Objects', value: '*', Icon: IconNorthStar },
+    { label: t`All Objects`, value: '*', Icon: IconNorthStar },
     ...objectMetadataItems.map((item) => ({
       label: item.labelPlural,
       value: item.nameSingular,
@@ -63,12 +64,23 @@ export const SettingsDatabaseEventsForm = ({
     })),
   ];
 
-  const actionOptions: SelectOption<string>[] = [
-    { label: 'All', value: '*', Icon: IconNorthStar },
-    { label: 'Created', value: 'created', Icon: IconPlus },
-    { label: 'Updated', value: 'updated', Icon: IconBox },
-    { label: 'Deleted', value: 'deleted', Icon: IconTrash },
-  ];
+  const getActionOptions = (
+    updatedFields?: string[],
+  ): SelectOption<string>[] => {
+    const hasSpecificFields =
+      isDefined(updatedFields) && updatedFields.length > 0;
+
+    return [
+      { label: t`All`, value: '*', Icon: IconNorthStar },
+      { label: t`Created`, value: 'created', Icon: IconPlus },
+      {
+        label: hasSpecificFields ? t`Updated (on specific fields)` : t`Updated`,
+        value: 'updated',
+        Icon: IconBox,
+      },
+      { label: t`Deleted`, value: 'deleted', Icon: IconTrash },
+    ];
+  };
 
   return (
     <>
@@ -82,13 +94,13 @@ export const SettingsDatabaseEventsForm = ({
               updateOperation?.(index, 'object', newValue)
             }
             fullWidth
-            emptyOption={{ label: 'Object', value: null }}
+            emptyOption={{ label: t`Object`, value: null }}
             disabled={disabled}
           />
           <Select
             dropdownId={`operation-webhook-type-select-${index}`}
             value={operation.action}
-            options={actionOptions}
+            options={getActionOptions(operation.updatedFields)}
             onChange={(newValue) =>
               updateOperation?.(index, 'action', newValue)
             }

@@ -8,12 +8,15 @@ import {
 } from '@/spreadsheet-import/types';
 import { isNonEmptyString } from '@sniptt/guards';
 import { parsePhoneNumberWithError, type CountryCode } from 'libphonenumber-js';
-import { assertUnreachable, isDefined } from 'twenty-shared/utils';
+import {
+  assertUnreachable,
+  isDefined,
+  isEmptyObject,
+} from 'twenty-shared/utils';
 import { z } from 'zod';
 import { FieldMetadataType, RelationType } from '~/generated-metadata/graphql';
 import { castToString } from '~/utils/castToString';
 import { convertCurrencyAmountToCurrencyMicros } from '~/utils/convertCurrencyToCurrencyMicros';
-import { isEmptyObject } from '~/utils/isEmptyObject';
 import { stripSimpleQuotesFromString } from '~/utils/string/stripSimpleQuotesFromString';
 
 type BuildRecordFromImportedStructuredRowArgs = {
@@ -351,6 +354,7 @@ export const buildRecordFromImportedStructuredRow = ({
           recordToBuild[field.name] = importedFieldValue;
         }
         break;
+      case FieldMetadataType.FILES:
       case FieldMetadataType.MORPH_RELATION:
       case FieldMetadataType.POSITION:
       case FieldMetadataType.RICH_TEXT:

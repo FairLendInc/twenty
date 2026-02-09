@@ -11,21 +11,24 @@ import {
   validateSync,
 } from 'class-validator';
 import { isDefined } from 'twenty-shared/utils';
+import { type LoggerOptions } from 'typeorm/logger/LoggerOptions';
 
-import { AwsRegion } from 'src/engine/core-modules/twenty-config/interfaces/aws-region.interface';
+import { type AwsRegion } from 'src/engine/core-modules/twenty-config/interfaces/aws-region.interface';
 import { NodeEnvironment } from 'src/engine/core-modules/twenty-config/interfaces/node-environment.interface';
 import { SupportDriver } from 'src/engine/core-modules/twenty-config/interfaces/support.interface';
+import { LogicFunctionExecutorDriverType } from 'src/engine/core-modules/logic-function/logic-function-executor/interfaces/logic-function-executor.interface';
 
 import { CaptchaDriverType } from 'src/engine/core-modules/captcha/interfaces';
+import { CodeInterpreterDriverType } from 'src/engine/core-modules/code-interpreter/code-interpreter.interface';
 import { EmailDriver } from 'src/engine/core-modules/email/enums/email-driver.enum';
 import { ExceptionHandlerDriver } from 'src/engine/core-modules/exception-handler/interfaces';
 import { StorageDriverType } from 'src/engine/core-modules/file-storage/interfaces';
 import { LoggerDriverType } from 'src/engine/core-modules/logger/interfaces';
 import { type MeterDriver } from 'src/engine/core-modules/metrics/types/meter-driver.type';
-import { ServerlessDriverType } from 'src/engine/core-modules/serverless/serverless.interface';
 import { CastToLogLevelArray } from 'src/engine/core-modules/twenty-config/decorators/cast-to-log-level-array.decorator';
 import { CastToMeterDriverArray } from 'src/engine/core-modules/twenty-config/decorators/cast-to-meter-driver.decorator';
 import { CastToPositiveNumber } from 'src/engine/core-modules/twenty-config/decorators/cast-to-positive-number.decorator';
+import { CastToTypeORMLogLevelArray } from 'src/engine/core-modules/twenty-config/decorators/cast-to-typeorm-log-level-array.decorator';
 import { CastToUpperSnakeCase } from 'src/engine/core-modules/twenty-config/decorators/cast-to-upper-snake-case.decorator';
 import { ConfigVariablesMetadata } from 'src/engine/core-modules/twenty-config/decorators/config-variables-metadata.decorator';
 import { IsAWSRegion } from 'src/engine/core-modules/twenty-config/decorators/is-aws-region.decorator';
@@ -70,11 +73,11 @@ export class ConfigVariables {
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.OTHER,
     description:
-      'Enable safe mode for HTTP requests (prevents private IPs and other security risks)',
+      'Enable safe mode for outbound HTTP requests (prevents private IPs and other security risks). Applies to HTTP workflow actions and webhooks.',
     type: ConfigVariableType.BOOLEAN,
   })
   @IsOptional()
-  HTTP_TOOL_SAFE_MODE_ENABLED = true;
+  OUTBOUND_HTTP_SAFE_MODE_ENABLED = true;
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.TOKENS_DURATION,
@@ -157,7 +160,15 @@ export class ConfigVariables {
     description: 'Enable or disable the IMAP messaging integration',
     type: ConfigVariableType.BOOLEAN,
   })
-  IS_IMAP_SMTP_CALDAV_ENABLED = false;
+  IS_IMAP_SMTP_CALDAV_ENABLED = true;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.OTHER,
+    description:
+      "Enable or disable requests to twenty-icons to get companies' icons",
+    type: ConfigVariableType.BOOLEAN,
+  })
+  ALLOW_REQUESTS_TO_TWENTY_ICONS = true;
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.MICROSOFT_AUTH,
@@ -206,6 +217,15 @@ export class ConfigVariables {
   AUTH_MICROSOFT_APIS_CALLBACK_URL: string;
 
   @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.OTHER,
+    description:
+      'Enable or disable the seeding of standard record page layouts',
+    type: ConfigVariableType.BOOLEAN,
+  })
+  @IsOptional()
+  SHOULD_SEED_STANDARD_RECORD_PAGE_LAYOUTS = false;
+
+  @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.MICROSOFT_AUTH,
     description: 'Enable or disable the Microsoft messaging integration',
     type: ConfigVariableType.BOOLEAN,
@@ -218,17 +238,6 @@ export class ConfigVariables {
     type: ConfigVariableType.BOOLEAN,
   })
   CALENDAR_PROVIDER_MICROSOFT_ENABLED = false;
-
-  @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.OTHER,
-    isSensitive: true,
-    description:
-      'Legacy variable to be deprecated when all API Keys expire. Replaced by APP_KEY',
-    type: ConfigVariableType.STRING,
-    isEnvOnly: true,
-  })
-  @IsOptional()
-  ACCESS_TOKEN_SECRET: string;
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.TOKENS_DURATION,
@@ -258,12 +267,13 @@ export class ConfigVariables {
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.TOKENS_DURATION,
-    description: 'Cooldown period for refreshing tokens',
+    description:
+      'Grace period allowing concurrent refresh token use (e.g. two tabs refreshing simultaneously). Reuse after this window triggers suspicious activity detection.',
     type: ConfigVariableType.STRING,
   })
   @IsDuration()
   @IsOptional()
-  REFRESH_TOKEN_COOL_DOWN = '1m';
+  REFRESH_TOKEN_REUSE_GRACE_PERIOD = '1m';
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.TOKENS_DURATION,
@@ -375,7 +385,7 @@ export class ConfigVariables {
     type: ConfigVariableType.BOOLEAN,
   })
   @IsOptional()
-  IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS = false;
+  IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS = true;
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.STORAGE_CONFIG,
@@ -444,87 +454,131 @@ export class ConfigVariables {
   STORAGE_S3_SECRET_ACCESS_KEY: string;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.SERVERLESS_CONFIG,
-    description: 'Type of serverless execution (local or Lambda)',
+    group: ConfigVariablesGroup.LOGIC_FUNCTION_CONFIG,
+    description: 'Type of function execution (local or Lambda)',
     type: ConfigVariableType.ENUM,
-    options: Object.values(ServerlessDriverType),
+    options: Object.values(LogicFunctionExecutorDriverType),
     isEnvOnly: true,
   })
   @IsOptional()
   @CastToUpperSnakeCase()
-  SERVERLESS_TYPE: ServerlessDriverType = ServerlessDriverType.LOCAL;
+  LOGIC_FUNCTION_TYPE: LogicFunctionExecutorDriverType =
+    LogicFunctionExecutorDriverType.LOCAL;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.SERVERLESS_CONFIG,
+    group: ConfigVariablesGroup.LOGIC_FUNCTION_CONFIG,
     description:
-      'Configure whether console logs from serverless functions are displayed in the terminal',
+      'Configure whether console logs from logic functions are displayed in the terminal',
     type: ConfigVariableType.BOOLEAN,
   })
   @IsOptional()
-  SERVERLESS_LOGS_ENABLED: false;
+  LOGIC_FUNCTION_LOGS_ENABLED: false;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.SERVERLESS_CONFIG,
-    description: 'Throttle limit for serverless function execution',
+    group: ConfigVariablesGroup.LOGIC_FUNCTION_CONFIG,
+    description: 'Throttle limit for logic function execution',
     type: ConfigVariableType.NUMBER,
   })
   @CastToPositiveNumber()
-  SERVERLESS_FUNCTION_EXEC_THROTTLE_LIMIT = 1000;
+  LOGIC_FUNCTION_EXEC_THROTTLE_LIMIT = 1000;
 
   // milliseconds
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.SERVERLESS_CONFIG,
-    description: 'Time-to-live for serverless function execution throttle',
+    group: ConfigVariablesGroup.LOGIC_FUNCTION_CONFIG,
+    description: 'Time-to-live for logic function execution throttle',
     type: ConfigVariableType.NUMBER,
   })
   @CastToPositiveNumber()
-  SERVERLESS_FUNCTION_EXEC_THROTTLE_TTL = 60_000;
+  LOGIC_FUNCTION_EXEC_THROTTLE_TTL = 60_000;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.SERVERLESS_CONFIG,
+    group: ConfigVariablesGroup.LOGIC_FUNCTION_CONFIG,
     description: 'Region for AWS Lambda functions',
     type: ConfigVariableType.STRING,
   })
-  @ValidateIf((env) => env.SERVERLESS_TYPE === ServerlessDriverType.LAMBDA)
+  @ValidateIf(
+    (env) => env.LOGIC_FUNCTION_TYPE === LogicFunctionExecutorDriverType.LAMBDA,
+  )
   @IsAWSRegion()
-  SERVERLESS_LAMBDA_REGION: AwsRegion;
+  LOGIC_FUNCTION_LAMBDA_REGION: AwsRegion;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.SERVERLESS_CONFIG,
+    group: ConfigVariablesGroup.LOGIC_FUNCTION_CONFIG,
     description: 'IAM role for AWS Lambda functions',
     type: ConfigVariableType.STRING,
   })
-  @ValidateIf((env) => env.SERVERLESS_TYPE === ServerlessDriverType.LAMBDA)
-  SERVERLESS_LAMBDA_ROLE: string;
+  @ValidateIf(
+    (env) => env.LOGIC_FUNCTION_TYPE === LogicFunctionExecutorDriverType.LAMBDA,
+  )
+  LOGIC_FUNCTION_LAMBDA_ROLE: string;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.SERVERLESS_CONFIG,
+    group: ConfigVariablesGroup.LOGIC_FUNCTION_CONFIG,
     description: 'Role to assume when hosting lambdas in dedicated AWS account',
     type: ConfigVariableType.STRING,
   })
-  @ValidateIf((env) => env.SERVERLESS_TYPE === ServerlessDriverType.LAMBDA)
+  @ValidateIf(
+    (env) => env.LOGIC_FUNCTION_TYPE === LogicFunctionExecutorDriverType.LAMBDA,
+  )
   @IsOptional()
-  SERVERLESS_LAMBDA_SUBHOSTING_ROLE?: string;
+  LOGIC_FUNCTION_LAMBDA_SUBHOSTING_ROLE?: string;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.SERVERLESS_CONFIG,
+    group: ConfigVariablesGroup.LOGIC_FUNCTION_CONFIG,
     isSensitive: true,
     description: 'Access key ID for AWS Lambda functions',
     type: ConfigVariableType.STRING,
   })
-  @ValidateIf((env) => env.SERVERLESS_TYPE === ServerlessDriverType.LAMBDA)
+  @ValidateIf(
+    (env) => env.LOGIC_FUNCTION_TYPE === LogicFunctionExecutorDriverType.LAMBDA,
+  )
   @IsOptional()
-  SERVERLESS_LAMBDA_ACCESS_KEY_ID: string;
+  LOGIC_FUNCTION_LAMBDA_ACCESS_KEY_ID: string;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.SERVERLESS_CONFIG,
+    group: ConfigVariablesGroup.LOGIC_FUNCTION_CONFIG,
     isSensitive: true,
     description: 'Secret access key for AWS Lambda functions',
     type: ConfigVariableType.STRING,
   })
-  @ValidateIf((env) => env.SERVERLESS_TYPE === ServerlessDriverType.LAMBDA)
+  @ValidateIf(
+    (env) => env.LOGIC_FUNCTION_TYPE === LogicFunctionExecutorDriverType.LAMBDA,
+  )
   @IsOptional()
-  SERVERLESS_LAMBDA_SECRET_ACCESS_KEY: string;
+  LOGIC_FUNCTION_LAMBDA_SECRET_ACCESS_KEY: string;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.CODE_INTERPRETER_CONFIG,
+    description:
+      'Code interpreter driver type - LOCAL for development (unsafe), E2B for sandboxed execution',
+    type: ConfigVariableType.STRING,
+    options: Object.values(CodeInterpreterDriverType),
+    isEnvOnly: true,
+  })
+  @IsOptional()
+  @CastToUpperSnakeCase()
+  CODE_INTERPRETER_TYPE: CodeInterpreterDriverType =
+    CodeInterpreterDriverType.DISABLED;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.CODE_INTERPRETER_CONFIG,
+    description: 'E2B API key for sandboxed code execution',
+    type: ConfigVariableType.STRING,
+    isSensitive: true,
+  })
+  @ValidateIf(
+    (env) => env.CODE_INTERPRETER_TYPE === CodeInterpreterDriverType.E_2_B,
+  )
+  E2B_API_KEY?: string;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.CODE_INTERPRETER_CONFIG,
+    description: 'Timeout in milliseconds for code execution (default: 300000)',
+    type: ConfigVariableType.NUMBER,
+  })
+  @IsOptional()
+  @CastToPositiveNumber()
+  CODE_INTERPRETER_TIMEOUT_MS = 300_000;
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.ANALYTICS_CONFIG,
@@ -555,6 +609,17 @@ export class ConfigVariables {
   })
   @IsOptional()
   TELEMETRY_ENABLED = true;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.LOGGING,
+    description:
+      'TypeORM logging options for development mode. Accepts comma-separated values: query, schema, error, warn, info, log, migration',
+    type: ConfigVariableType.ARRAY,
+    options: ['query', 'schema', 'error', 'warn', 'info', 'log', 'migration'],
+  })
+  @CastToTypeORMLogLevelArray()
+  @IsOptional()
+  TYPEORM_LOGGING: LoggerOptions = ['error'];
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.BILLING_CONFIG,
@@ -803,6 +868,22 @@ export class ConfigVariables {
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.SERVER_CONFIG,
+    isSensitive: true,
+    description: 'Database connection URL',
+    type: ConfigVariableType.STRING,
+    isEnvOnly: true,
+  })
+  @IsOptional()
+  @IsUrl({
+    protocols: ['postgres', 'postgresql'],
+    require_tld: false,
+    allow_underscores: true,
+    require_host: false,
+  })
+  PG_DATABASE_REPLICA_URL: string;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.SERVER_CONFIG,
     description:
       'Allow connections to a database with self-signed certificates',
     isEnvOnly: true,
@@ -976,7 +1057,7 @@ export class ConfigVariables {
     type: ConfigVariableType.NUMBER,
   })
   @CastToPositiveNumber()
-  API_RATE_LIMITING_LONG_TTL_IN_MS = 60000;
+  API_RATE_LIMITING_LONG_TTL_IN_MS = 60_000;
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.RATE_LIMITING,
@@ -986,6 +1067,66 @@ export class ConfigVariables {
   })
   @CastToPositiveNumber()
   API_RATE_LIMITING_LONG_LIMIT = 100;
+
+  @CastToPositiveNumber()
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.RATE_LIMITING,
+    description: 'Maximum fields allowed for GQL queries',
+    type: ConfigVariableType.NUMBER,
+  })
+  GRAPHQL_MAX_FIELDS = 2000;
+
+  @CastToPositiveNumber()
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.RATE_LIMITING,
+    description: 'Maximum root resolvers allowed for GQL queries',
+    type: ConfigVariableType.NUMBER,
+  })
+  GRAPHQL_MAX_ROOT_RESOLVERS = 20;
+
+  @CastToPositiveNumber()
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.RATE_LIMITING,
+    description: 'Maximum complexity allowed for Common API queries',
+    type: ConfigVariableType.NUMBER,
+  })
+  COMMON_QUERY_COMPLEXITY_LIMIT = 2000;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.RATE_LIMITING,
+    description:
+      'Time-to-live for workspace-level invitations resending rate limiting in milliseconds',
+    type: ConfigVariableType.NUMBER,
+  })
+  @CastToPositiveNumber()
+  INVITATION_SENDING_BY_WORKSPACE_THROTTLE_TTL_IN_MS = 604_800_000; // 7 days
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.RATE_LIMITING,
+    description:
+      'Maximum number of workspace-level invitations resending allowed in the rate limiting window',
+    type: ConfigVariableType.NUMBER,
+  })
+  @CastToPositiveNumber()
+  INVITATION_SENDING_BY_WORKSPACE_THROTTLE_LIMIT = 500;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.RATE_LIMITING,
+    description:
+      'Time-to-live for email-level invitations sending rate limiting in milliseconds',
+    type: ConfigVariableType.NUMBER,
+  })
+  @CastToPositiveNumber()
+  INVITATION_SENDING_BY_EMAIL_THROTTLE_TTL_IN_MS = 604_800_000; // 7 days
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.RATE_LIMITING,
+    description:
+      'Maximum number of email-level invitations sending allowed in the rate limiting window',
+    type: ConfigVariableType.NUMBER,
+  })
+  @CastToPositiveNumber()
+  INVITATION_SENDING_BY_EMAIL_THROTTLE_LIMIT = 10;
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.SSL,
@@ -1052,20 +1193,21 @@ export class ConfigVariables {
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.LLM,
     description:
-      'Default AI model ID for speed-optimized operations (lightweight tasks, high throughput)',
+      'Comma-separated list of AI model IDs for speed-optimized operations, in priority order. The first available model will be used.',
     type: ConfigVariableType.STRING,
   })
   @IsOptional()
-  DEFAULT_AI_SPEED_MODEL_ID = 'gpt-4o-mini';
+  DEFAULT_AI_SPEED_MODEL_ID =
+    'gpt-4.1-mini,claude-haiku-4-5-20251001,grok-3-mini';
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.LLM,
     description:
-      'Default AI model ID for performance-optimized operations (complex reasoning, quality focus)',
+      'Comma-separated list of AI model IDs for performance-optimized operations, in priority order. The first available model will be used.',
     type: ConfigVariableType.STRING,
   })
   @IsOptional()
-  DEFAULT_AI_PERFORMANCE_MODEL_ID = 'gpt-4o';
+  DEFAULT_AI_PERFORMANCE_MODEL_ID = 'gpt-4.1,claude-sonnet-4-5-20250929,grok-4';
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.LLM,
@@ -1176,19 +1318,39 @@ export class ConfigVariables {
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.RATE_LIMITING,
-    description: 'Throttle limit for workflow execution',
+    description:
+      'Throttle limit for workflow execution. Remaining will not be enqueued immediately.',
     type: ConfigVariableType.NUMBER,
   })
   @CastToPositiveNumber()
-  WORKFLOW_EXEC_THROTTLE_LIMIT = 100;
+  WORKFLOW_EXEC_SOFT_THROTTLE_LIMIT = 100;
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.RATE_LIMITING,
-    description: 'Time-to-live for workflow execution throttle in milliseconds',
+    description:
+      'Time-to-live for workflow execution throttle in milliseconds. Remaining will not be enqueued immediately.',
     type: ConfigVariableType.NUMBER,
   })
   @CastToPositiveNumber()
-  WORKFLOW_EXEC_THROTTLE_TTL = 60_000;
+  WORKFLOW_EXEC_SOFT_THROTTLE_TTL = 60_000;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.RATE_LIMITING,
+    description:
+      'Throttle limit for workflow execution. Remaining will be marked as failed.',
+    type: ConfigVariableType.NUMBER,
+  })
+  @CastToPositiveNumber()
+  WORKFLOW_EXEC_HARD_THROTTLE_LIMIT = 5000;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.RATE_LIMITING,
+    description:
+      'Time-to-live for workflow execution throttle in milliseconds. Remaining will be marked as failed.',
+    type: ConfigVariableType.NUMBER,
+  })
+  @CastToPositiveNumber()
+  WORKFLOW_EXEC_HARD_THROTTLE_TTL = 3_600_000; // 1 hour;
 
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.CAPTCHA_CONFIG,
@@ -1343,6 +1505,26 @@ export class ConfigVariables {
   })
   @IsOptional()
   AWS_SES_ACCOUNT_ID: string;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.SERVER_CONFIG,
+    description: 'Timeout in milliseconds for primary database queries',
+    type: ConfigVariableType.NUMBER,
+    isEnvOnly: true,
+  })
+  @CastToPositiveNumber()
+  @IsOptional()
+  PG_DATABASE_PRIMARY_TIMEOUT_MS: number = 10000;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.SERVER_CONFIG,
+    description: 'Timeout in milliseconds for replica database queries',
+    type: ConfigVariableType.NUMBER,
+    isEnvOnly: true,
+  })
+  @CastToPositiveNumber()
+  @IsOptional()
+  PG_DATABASE_REPLICA_TIMEOUT_MS: number = 10000;
 }
 
 export const validate = (config: Record<string, unknown>): ConfigVariables => {

@@ -1,10 +1,9 @@
-import { type BarChartDataItem } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarChartDataItem';
 import { type BarChartLabelData } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarChartLabelData';
-import { type ComputedBarDatum } from '@nivo/bar';
+import { type BarPosition } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarPosition';
 import { isDefined } from 'twenty-shared/utils';
 
 export const computeBarChartStackedLabels = (
-  bars: readonly ComputedBarDatum<BarChartDataItem>[],
+  bars: BarPosition[],
 ): BarChartLabelData[] => {
   const stackData = new Map<
     string,
@@ -12,16 +11,18 @@ export const computeBarChartStackedLabels = (
       total: number;
       minimumYPosition: number;
       maximumBottomYPosition: number;
+      minimumXPosition: number;
       maximumXPosition: number;
-      bars: ComputedBarDatum<BarChartDataItem>[];
+      bars: BarPosition[];
     }
   >();
 
   for (const bar of bars) {
-    const groupKey = String(bar.data.indexValue);
-    const value = Number(bar.data.value);
+    const groupKey = bar.indexValue;
+    const value = bar.value;
     const barTopY = bar.y;
     const barBottomY = bar.y + bar.height;
+    const barLeftX = bar.x;
     const barRightX = bar.x + bar.width;
     const existingGroup = stackData.get(groupKey);
 
@@ -35,6 +36,10 @@ export const computeBarChartStackedLabels = (
         existingGroup.maximumBottomYPosition,
         barBottomY,
       );
+      existingGroup.minimumXPosition = Math.min(
+        existingGroup.minimumXPosition,
+        barLeftX,
+      );
       existingGroup.maximumXPosition = Math.max(
         existingGroup.maximumXPosition,
         barRightX,
@@ -45,6 +50,7 @@ export const computeBarChartStackedLabels = (
         total: value,
         minimumYPosition: barTopY,
         maximumBottomYPosition: barBottomY,
+        minimumXPosition: barLeftX,
         maximumXPosition: barRightX,
         bars: [bar],
       });
@@ -60,6 +66,7 @@ export const computeBarChartStackedLabels = (
         total,
         minimumYPosition,
         maximumBottomYPosition,
+        minimumXPosition,
         maximumXPosition,
         bars: groupBars,
       },
@@ -77,7 +84,7 @@ export const computeBarChartStackedLabels = (
         value: total,
         verticalX: centerX,
         verticalY: isNegativeTotal ? maximumBottomYPosition : minimumYPosition,
-        horizontalX: maximumXPosition,
+        horizontalX: isNegativeTotal ? minimumXPosition : maximumXPosition,
         horizontalY: centerY,
         shouldRenderBelow: isNegativeTotal,
       };

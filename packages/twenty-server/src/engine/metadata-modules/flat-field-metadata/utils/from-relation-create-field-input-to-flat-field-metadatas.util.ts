@@ -1,12 +1,16 @@
 import { msg } from '@lingui/core/macro';
-import { type FieldMetadataType } from 'twenty-shared/types';
+import { FieldMetadataType } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 
+import { type FlatApplication } from 'src/engine/core-modules/application/types/flat-application.type';
 import { type CreateFieldInput } from 'src/engine/metadata-modules/field-metadata/dtos/create-field.input';
 import { FieldMetadataExceptionCode } from 'src/engine/metadata-modules/field-metadata/field-metadata.exception';
 import { computeMorphOrRelationFieldJoinColumnName } from 'src/engine/metadata-modules/field-metadata/utils/compute-morph-or-relation-field-join-column-name.util';
 import { type FlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/types/flat-entity-maps.type';
+import { findFlatEntityByIdInFlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/utils/find-flat-entity-by-id-in-flat-entity-maps.util';
 import { type FieldInputTranspilationResult } from 'src/engine/metadata-modules/flat-field-metadata/types/field-input-transpilation-result.type';
+import { type FlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata.type';
+import { extractJunctionTargetSettingsFromSettings } from 'src/engine/metadata-modules/flat-field-metadata/utils/extract-junction-target-settings-from-settings.util';
 import {
   generateMorphOrRelationFlatFieldMetadataPair,
   type SourceTargetMorphOrRelationFlatFieldAndFlatIndex,
@@ -19,14 +23,18 @@ type FromRelationCreateFieldInputToFlatFieldMetadataArgs = {
     type: FieldMetadataType.RELATION;
   };
   existingFlatObjectMetadataMaps: FlatEntityMaps<FlatObjectMetadata>;
+  existingFlatFieldMetadataMaps: FlatEntityMaps<FlatFieldMetadata>;
   sourceFlatObjectMetadata: FlatObjectMetadata;
   workspaceId: string;
+  flatApplication: FlatApplication;
 };
 export const fromRelationCreateFieldInputToFlatFieldMetadatas = async ({
   existingFlatObjectMetadataMaps,
+  existingFlatFieldMetadataMaps,
   sourceFlatObjectMetadata,
   createFieldInput,
   workspaceId,
+  flatApplication,
 }: FromRelationCreateFieldInputToFlatFieldMetadataArgs): Promise<
   FieldInputTranspilationResult<SourceTargetMorphOrRelationFlatFieldAndFlatIndex>
 > => {
@@ -35,12 +43,14 @@ export const fromRelationCreateFieldInputToFlatFieldMetadatas = async ({
   if (!isDefined(rawCreationPayload)) {
     return {
       status: 'fail',
-      error: {
-        code: FieldMetadataExceptionCode.INVALID_FIELD_INPUT,
-        message: `Relation creation payload is required`,
-        userFriendlyMessage: msg`Relation creation payload is required`,
-        value: rawCreationPayload,
-      },
+      errors: [
+        {
+          code: FieldMetadataExceptionCode.INVALID_FIELD_INPUT,
+          message: `Relation creation payload is required`,
+          userFriendlyMessage: msg`Relation creation payload is required`,
+          value: rawCreationPayload,
+        },
+      ],
     };
   }
 
@@ -55,6 +65,16 @@ export const fromRelationCreateFieldInputToFlatFieldMetadatas = async ({
   const { relationCreationPayload, targetFlatObjectMetadata } =
     relationValidationResult.result;
 
+  const { junctionTargetFieldId } = extractJunctionTargetSettingsFromSettings(
+    createFieldInput.settings,
+  );
+  const junctionTargetFlatFieldMetadata = isDefined(junctionTargetFieldId)
+    ? findFlatEntityByIdInFlatEntityMaps({
+        flatEntityId: junctionTargetFieldId,
+        flatEntityMaps: existingFlatFieldMetadataMaps,
+      })
+    : undefined;
+
   const generateResult = generateMorphOrRelationFlatFieldMetadataPair({
     createFieldInput: {
       ...createFieldInput,
@@ -66,7 +86,10 @@ export const fromRelationCreateFieldInputToFlatFieldMetadatas = async ({
       }),
     sourceFlatObjectMetadata,
     targetFlatObjectMetadata,
+    targetFlatFieldMetadataType: FieldMetadataType.RELATION,
     workspaceId,
+    flatApplication,
+    junctionTargetFlatFieldMetadata,
   });
 
   return {

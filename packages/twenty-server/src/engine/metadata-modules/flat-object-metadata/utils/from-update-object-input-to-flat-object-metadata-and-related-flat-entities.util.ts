@@ -17,7 +17,7 @@ import {
   ObjectMetadataException,
   ObjectMetadataExceptionCode,
 } from 'src/engine/metadata-modules/object-metadata/object-metadata.exception';
-import { isStandardMetadata } from 'src/engine/metadata-modules/utils/is-standard-metadata.util';
+import { belongsToTwentyStandardApp } from 'src/engine/metadata-modules/utils/belongs-to-twenty-standard-app.util';
 import { mergeUpdateInExistingRecord } from 'src/utils/merge-update-in-existing-record.util';
 
 type FromUpdateObjectInputToFlatObjectMetadataArgs = {
@@ -60,7 +60,9 @@ export const fromUpdateObjectInputToFlatObjectMetadataAndRelatedFlatEntities =
       );
     }
 
-    const isStandardObject = isStandardMetadata(existingFlatObjectMetadata);
+    const isStandardObject = belongsToTwentyStandardApp(
+      existingFlatObjectMetadata,
+    );
     const { standardOverrides, updatedEditableObjectProperties } =
       sanitizeRawUpdateObjectInput({
         existingFlatObjectMetadata,
@@ -84,10 +86,12 @@ export const fromUpdateObjectInputToFlatObjectMetadataAndRelatedFlatEntities =
       flatViewFieldsToCreate,
       flatViewFieldsToUpdate,
       otherObjectFlatFieldMetadatasToUpdate,
+      sameObjectFlatFieldMetadatasToUpdate,
     } = handleFlatObjectMetadataUpdateSideEffect({
       fromFlatObjectMetadata: existingFlatObjectMetadata,
       toFlatObjectMetadata,
       flatFieldMetadataMaps,
+      flatObjectMetadataMaps: existingFlatObjectMetadataMaps,
       flatIndexMaps,
       flatViewFieldMaps,
       flatViewMaps,
@@ -99,5 +103,6 @@ export const fromUpdateObjectInputToFlatObjectMetadataAndRelatedFlatEntities =
       flatViewFieldsToCreate,
       flatViewFieldsToUpdate,
       otherObjectFlatFieldMetadatasToUpdate,
+      sameObjectFlatFieldMetadatasToUpdate,
     };
   };

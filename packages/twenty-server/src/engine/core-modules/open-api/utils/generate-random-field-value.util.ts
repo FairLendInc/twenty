@@ -1,16 +1,18 @@
 import { faker } from '@faker-js/faker';
-import { FieldMetadataType } from 'twenty-shared/types';
+import {
+  type FieldMetadataDefaultValue,
+  FieldMetadataType,
+} from 'twenty-shared/types';
 import { assertUnreachable, isDefined } from 'twenty-shared/utils';
 import { v4 } from 'uuid';
 
-import { type FieldMetadataDefaultValue } from 'src/engine/metadata-modules/field-metadata/interfaces/field-metadata-default-value.interface';
-
 import { type FieldMetadataEntity } from 'src/engine/metadata-modules/field-metadata/field-metadata.entity';
+import { type FlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata.type';
 
 export const generateRandomFieldValue = ({
   field,
 }: {
-  field: FieldMetadataEntity;
+  field: FieldMetadataEntity | FlatFieldMetadata;
 }): FieldMetadataDefaultValue => {
   switch (field.type) {
     case FieldMetadataType.UUID: {
@@ -64,7 +66,7 @@ export const generateRandomFieldValue = ({
 
     case FieldMetadataType.CURRENCY: {
       return {
-        amountMicros: faker.number.int({ min: 100, max: 1_000 }) * 1_000_000,
+        amountMicros: `${faker.number.int({ min: 100, max: 1_000 }) * 1_000_000}`,
         currencyCode: 'EUR',
       };
     }
@@ -130,7 +132,6 @@ export const generateRandomFieldValue = ({
     case FieldMetadataType.ACTOR: {
       return {
         source: 'MANUAL',
-        context: {},
         name: faker.person.fullName(),
         workspaceMemberId: null,
       };
@@ -138,6 +139,10 @@ export const generateRandomFieldValue = ({
 
     case FieldMetadataType.ARRAY: {
       return [];
+    }
+
+    case FieldMetadataType.FILES: {
+      return null;
     }
 
     case FieldMetadataType.IMAGE:

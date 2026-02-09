@@ -15,10 +15,12 @@ module.exports = {
     './src/modules/favorites/graphql/**/*.{ts,tsx}',
     './src/modules/spreadsheet-import/graphql/**/*.{ts,tsx}',
     './src/modules/command-menu/graphql/**/*.{ts,tsx}',
+    './src/modules/marketplace/graphql/**/*.{ts,tsx}',
 
     './src/modules/prefetch/graphql/**/*.{ts,tsx}',
     './src/modules/subscription/graphql/**/*.{ts,tsx}',
 
+    './src/modules/dashboards/graphql/**/*.{ts,tsx}',
     './src/modules/page-layout/graphql/**/*.{ts,tsx}',
 
     '!./src/**/*.test.{ts,tsx}',

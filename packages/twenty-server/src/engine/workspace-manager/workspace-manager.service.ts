@@ -1,51 +1,36 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 
-import { DataSource, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 
-import { ApplicationService } from 'src/engine/core-modules/application/application.service';
-import { FeatureFlagService } from 'src/engine/core-modules/feature-flag/services/feature-flag.service';
+import { ApplicationService } from 'src/engine/core-modules/application/services/application.service';
+import { FlatApplication } from 'src/engine/core-modules/application/types/flat-application.type';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
-import { type DataSourceEntity } from 'src/engine/metadata-modules/data-source/data-source.entity';
 import { DataSourceService } from 'src/engine/metadata-modules/data-source/data-source.service';
-import { ObjectMetadataServiceV2 } from 'src/engine/metadata-modules/object-metadata/object-metadata-v2.service';
-import { RoleTargetsEntity } from 'src/engine/metadata-modules/role/role-targets.entity';
 import { RoleEntity } from 'src/engine/metadata-modules/role/role.entity';
 import { RoleService } from 'src/engine/metadata-modules/role/role.service';
 import { UserRoleService } from 'src/engine/metadata-modules/user-role/user-role.service';
-import { WorkspaceMigrationService } from 'src/engine/metadata-modules/workspace-migration/workspace-migration.service';
-import { TwentyORMGlobalManager } from 'src/engine/twenty-orm/twenty-orm-global.manager';
 import { WorkspaceDataSourceService } from 'src/engine/workspace-datasource/workspace-datasource.service';
-import { prefillCoreViews } from 'src/engine/workspace-manager/standard-objects-prefill-data/prefill-core-views';
-import { standardObjectsPrefillData } from 'src/engine/workspace-manager/standard-objects-prefill-data/standard-objects-prefill-data';
-import { ADMIN_ROLE } from 'src/engine/workspace-manager/workspace-sync-metadata/standard-roles/roles/admin-role';
-import { WorkspaceSyncMetadataService } from 'src/engine/workspace-manager/workspace-sync-metadata/workspace-sync-metadata.service';
+import { STANDARD_ROLE } from 'src/engine/workspace-manager/twenty-standard-application/constants/standard-role.constant';
+import { TwentyStandardApplicationService } from 'src/engine/workspace-manager/twenty-standard-application/services/twenty-standard-application.service';
 
 @Injectable()
 export class WorkspaceManagerService {
   private readonly logger = new Logger(WorkspaceManagerService.name);
 
   constructor(
-    @InjectDataSource()
-    private readonly coreDataSource: DataSource,
     private readonly workspaceDataSourceService: WorkspaceDataSourceService,
-    private readonly workspaceMigrationService: WorkspaceMigrationService,
-    private readonly objectMetadataServiceV2: ObjectMetadataServiceV2,
     private readonly dataSourceService: DataSourceService,
-    private readonly workspaceSyncMetadataService: WorkspaceSyncMetadataService,
     @InjectRepository(UserWorkspaceEntity)
     private readonly userWorkspaceRepository: Repository<UserWorkspaceEntity>,
     private readonly roleService: RoleService,
     private readonly userRoleService: UserRoleService,
-    private readonly featureFlagService: FeatureFlagService,
+    private readonly twentyStandardApplicationService: TwentyStandardApplicationService,
     @InjectRepository(WorkspaceEntity)
     private readonly workspaceRepository: Repository<WorkspaceEntity>,
     @InjectRepository(RoleEntity)
     private readonly roleRepository: Repository<RoleEntity>,
-    @InjectRepository(RoleTargetsEntity)
-    private readonly roleTargetsRepository: Repository<RoleTargetsEntity>,
-    protected readonly twentyORMGlobalManager: TwentyORMGlobalManager,
     private readonly applicationService: ApplicationService,
   ) {}
 
@@ -70,25 +55,21 @@ export class WorkspaceManagerService {
     );
 
     const dataSourceMetadataCreationStart = performance.now();
-    const dataSourceMetadata =
-      await this.dataSourceService.createDataSourceMetadata(
-        workspaceId,
-        schemaName,
-      );
 
-    const featureFlags =
-      await this.featureFlagService.getWorkspaceFeatureFlagsMap(workspaceId);
+    await this.dataSourceService.createDataSourceMetadata(
+      workspaceId,
+      schemaName,
+    );
 
     await this.applicationService.createTwentyStandardApplication({
       workspaceId,
     });
 
-    // TODO later replace by twenty-standard installation aka workspaceMigration run
-    await this.workspaceSyncMetadataService.synchronize({
-      workspaceId,
-      dataSourceId: dataSourceMetadata.id,
-      featureFlags,
-    });
+    await this.twentyStandardApplicationService.synchronizeTwentyStandardApplicationOrThrow(
+      {
+        workspaceId,
+      },
+    );
 
     const dataSourceMetadataCreationEnd = performance.now();
 
@@ -96,72 +77,32 @@ export class WorkspaceManagerService {
       `Metadata creation took ${dataSourceMetadataCreationEnd - dataSourceMetadataCreationStart}ms`,
     );
 
-    await this.setupDefaultRoles(workspaceId, userId);
+    const { workspaceCustomFlatApplication } =
+      await this.applicationService.findWorkspaceTwentyStandardAndCustomApplicationOrThrow(
+        {
+          workspaceId,
+        },
+      );
 
-    const prefillStandardObjectsStart = performance.now();
-
-    await this.prefillWorkspaceWithStandardObjectsRecords(
-      dataSourceMetadata,
+    await this.setupDefaultRoles({
       workspaceId,
-      featureFlags,
-    );
-
-    const prefillStandardObjectsEnd = performance.now();
-
-    this.logger.log(
-      `Prefill standard objects took ${prefillStandardObjectsEnd - prefillStandardObjectsStart}ms`,
-    );
-  }
-
-  private async prefillWorkspaceWithStandardObjectsRecords(
-    dataSourceMetadata: DataSourceEntity,
-    workspaceId: string,
-    featureFlags: Record<string, boolean>,
-  ) {
-    const createdObjectMetadata =
-      await this.objectMetadataServiceV2.findManyWithinWorkspace(workspaceId);
-
-    await standardObjectsPrefillData(
-      this.coreDataSource,
-      dataSourceMetadata.schema,
-      createdObjectMetadata,
-    );
-
-    await prefillCoreViews({
-      coreDataSource: this.coreDataSource,
-      workspaceId,
-      objectMetadataItems: createdObjectMetadata,
-      workspaceSchemaName: dataSourceMetadata.schema,
-      featureFlags,
+      userId,
+      workspaceCustomFlatApplication,
     });
   }
 
-  // TODO investigate why some entities are not on cascade delete
-  // Are foreign keys correctly applied ?
-  public async delete(workspaceId: string): Promise<void> {
-    await this.roleTargetsRepository.delete({
-      workspaceId,
-    });
-    await this.roleRepository.delete({
-      workspaceId,
-    });
-
-    await this.objectMetadataServiceV2.deleteWorkspaceAllObjectMetadata({
-      workspaceId,
-    });
-
-    await this.workspaceMigrationService.deleteAllWithinWorkspace(workspaceId);
-    await this.dataSourceService.delete(workspaceId);
-    await this.workspaceDataSourceService.deleteWorkspaceDBSchema(workspaceId);
-  }
-
-  private async setupDefaultRoles(
-    workspaceId: string,
-    userId: string,
-  ): Promise<void> {
+  private async setupDefaultRoles({
+    userId,
+    workspaceId,
+    workspaceCustomFlatApplication,
+  }: {
+    workspaceId: string;
+    userId: string;
+    workspaceCustomFlatApplication: FlatApplication;
+  }): Promise<void> {
     const adminRole = await this.roleRepository.findOne({
       where: {
-        standardId: ADMIN_ROLE.standardId,
+        universalIdentifier: STANDARD_ROLE.admin.universalIdentifier,
         workspaceId,
       },
     });
@@ -171,15 +112,16 @@ export class WorkspaceManagerService {
         where: { workspaceId, userId },
       });
 
-      await this.userRoleService.assignRoleToUserWorkspace({
+      await this.userRoleService.assignRoleToManyUserWorkspace({
         workspaceId,
-        userWorkspaceId: userWorkspace.id,
+        userWorkspaceIds: [userWorkspace.id],
         roleId: adminRole.id,
       });
     }
 
     const memberRole = await this.roleService.createMemberRole({
       workspaceId,
+      ownerFlatApplication: workspaceCustomFlatApplication,
     });
 
     await this.workspaceRepository.update(workspaceId, {

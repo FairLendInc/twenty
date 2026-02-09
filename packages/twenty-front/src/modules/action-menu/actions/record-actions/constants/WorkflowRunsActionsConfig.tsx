@@ -18,30 +18,23 @@ import {
 
 export const WORKFLOW_RUNS_ACTIONS_CONFIG = inheritActionsFromDefaultConfig({
   config: {
-    [WorkflowRunSingleRecordActionKeys.STOP]: {
-      key: WorkflowRunSingleRecordActionKeys.STOP,
-      label: msg`Stop`,
-      shortLabel: msg`Stop`,
+    [WorkflowRunSingleRecordActionKeys.SEE_VERSION]: {
+      key: WorkflowRunSingleRecordActionKeys.SEE_VERSION,
+      label: msg`See version`,
+      shortLabel: msg`See version`,
       position: 0,
       isPinned: true,
       type: ActionType.Standard,
       scope: ActionScope.RecordSelection,
-      Icon: IconPlayerStop,
-      shouldBeRegistered: ({
-        selectedRecord,
-        isWorkflowRunStoppageEnabled,
-      }) => {
-        return (
-          selectedRecord?.status === 'RUNNING' && isWorkflowRunStoppageEnabled
-        );
-      },
+      Icon: IconVersions,
+      shouldBeRegistered: () => true,
       availableOn: [
         ActionViewType.SHOW_PAGE,
         ActionViewType.INDEX_PAGE_SINGLE_RECORD_SELECTION,
-        ActionViewType.INDEX_PAGE_BULK_SELECTION,
       ],
-      component: <StopWorkflowRunSingleRecordAction />,
+      component: <SeeVersionWorkflowRunSingleRecordAction />,
     },
+
     [WorkflowRunSingleRecordActionKeys.SEE_WORKFLOW]: {
       key: WorkflowRunSingleRecordActionKeys.SEE_WORKFLOW,
       label: msg`See workflow`,
@@ -58,21 +51,29 @@ export const WORKFLOW_RUNS_ACTIONS_CONFIG = inheritActionsFromDefaultConfig({
       ],
       component: <SeeWorkflowWorkflowRunSingleRecordAction />,
     },
-    [WorkflowRunSingleRecordActionKeys.SEE_VERSION]: {
-      key: WorkflowRunSingleRecordActionKeys.SEE_VERSION,
-      label: msg`See version`,
-      shortLabel: msg`See version`,
+    [WorkflowRunSingleRecordActionKeys.STOP]: {
+      key: WorkflowRunSingleRecordActionKeys.STOP,
+      label: msg`Stop`,
+      shortLabel: msg`Stop`,
       position: 2,
       isPinned: true,
       type: ActionType.Standard,
       scope: ActionScope.RecordSelection,
-      Icon: IconVersions,
-      shouldBeRegistered: () => true,
+      Icon: IconPlayerStop,
+      shouldBeRegistered: ({ selectedRecord, isSelectAll }) => {
+        if (isSelectAll === true) {
+          return true;
+        }
+
+        const stoppableStatuses = ['NOT_STARTED', 'ENQUEUED', 'RUNNING'];
+        return stoppableStatuses.includes(selectedRecord?.status);
+      },
       availableOn: [
         ActionViewType.SHOW_PAGE,
         ActionViewType.INDEX_PAGE_SINGLE_RECORD_SELECTION,
+        ActionViewType.INDEX_PAGE_BULK_SELECTION,
       ],
-      component: <SeeVersionWorkflowRunSingleRecordAction />,
+      component: <StopWorkflowRunSingleRecordAction />,
     },
   },
   actionKeys: [

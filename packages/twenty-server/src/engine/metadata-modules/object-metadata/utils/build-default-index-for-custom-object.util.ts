@@ -23,16 +23,16 @@ export const buildDefaultIndexesForCustomObject = ({
   const tsVectorFlatIndex = generateFlatIndexMetadataWithNameOrThrow({
     objectFlatFieldMetadatas,
     flatIndex: {
-      createdAt,
+      createdAt: createdAt.toISOString(),
       flatIndexFieldMetadatas: [
         {
-          createdAt,
+          createdAt: createdAt.toISOString(),
           fieldMetadataId:
             defaultFlatFieldForCustomObjectMaps.fields.searchVectorField.id,
           id: v4(),
           indexMetadataId: tsFlatVectorIndexId,
           order: 0,
-          updatedAt: createdAt,
+          updatedAt: createdAt.toISOString(),
         },
       ],
       id: tsFlatVectorIndexId,
@@ -41,10 +41,13 @@ export const buildDefaultIndexesForCustomObject = ({
       isCustom: false,
       isUnique: false,
       objectMetadataId: flatObjectMetadata.id,
+      objectMetadataUniversalIdentifier: flatObjectMetadata.universalIdentifier,
       universalIdentifier: tsFlatVectorIndexId,
-      updatedAt: createdAt,
+      updatedAt: createdAt.toISOString(),
       workspaceId,
-      applicationId: flatObjectMetadata.applicationId ?? null,
+      applicationId: flatObjectMetadata.applicationId,
+      applicationUniversalIdentifier:
+        flatObjectMetadata.applicationUniversalIdentifier,
     },
     flatObjectMetadata,
   });

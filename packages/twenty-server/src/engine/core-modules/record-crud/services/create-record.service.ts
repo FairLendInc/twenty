@@ -1,63 +1,46 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { isDefined } from 'class-validator';
-import { canObjectBeManagedByWorkflow } from 'twenty-shared/workflow';
 import { FieldActorSource } from 'twenty-shared/types';
+import { canObjectBeManagedByWorkflow } from 'twenty-shared/workflow';
 
+import { CommonCreateOneQueryRunnerService } from 'src/engine/api/common/common-query-runners/common-create-one-query-runner.service';
 import {
   RecordCrudException,
   RecordCrudExceptionCode,
 } from 'src/engine/core-modules/record-crud/exceptions/record-crud.exception';
+import { CommonApiContextBuilderService } from 'src/engine/core-modules/record-crud/services/common-api-context-builder.service';
 import { type CreateRecordParams } from 'src/engine/core-modules/record-crud/types/create-record-params.type';
-import { getSelectedColumnsFromRestrictedFields } from 'src/engine/core-modules/record-crud/utils/get-selected-columns-from-restricted-fields.util';
-import { RecordPositionService } from 'src/engine/core-modules/record-position/services/record-position.service';
-import { RecordInputTransformerService } from 'src/engine/core-modules/record-transformer/services/record-input-transformer.service';
+import { getRecordDisplayName } from 'src/engine/core-modules/record-crud/utils/get-record-display-name.util';
+import { removeUndefinedFromRecord } from 'src/engine/core-modules/record-crud/utils/remove-undefined-from-record.util';
 import { type ToolOutput } from 'src/engine/core-modules/tool/types/tool-output.type';
-import { TwentyORMGlobalManager } from 'src/engine/twenty-orm/twenty-orm-global.manager';
-import { WorkflowCommonWorkspaceService } from 'src/modules/workflow/common/workspace-services/workflow-common.workspace-service';
 
 @Injectable()
-// eslint-disable-next-line @nx/workspace-inject-workspace-repository
 export class CreateRecordService {
   private readonly logger = new Logger(CreateRecordService.name);
 
   constructor(
-    private readonly twentyORMGlobalManager: TwentyORMGlobalManager,
-    private readonly recordPositionService: RecordPositionService,
-    private readonly recordInputTransformerService: RecordInputTransformerService,
-    private readonly workflowCommonWorkspaceService: WorkflowCommonWorkspaceService,
+    private readonly commonCreateOneRunner: CommonCreateOneQueryRunnerService,
+    private readonly commonApiContextBuilder: CommonApiContextBuilderService,
   ) {}
 
   async execute(params: CreateRecordParams): Promise<ToolOutput> {
-    const { objectName, objectRecord, workspaceId, rolePermissionConfig } =
-      params;
-
-    if (!workspaceId) {
-      return {
-        success: false,
-        message: 'Failed to create record: Workspace ID is required',
-        error: 'Workspace ID not found',
-      };
-    }
+    const { objectName, objectRecord, authContext } = params;
 
     try {
-      const repository =
-        await this.twentyORMGlobalManager.getRepositoryForWorkspace(
-          workspaceId,
-          objectName,
-          rolePermissionConfig,
-        );
-
-      const { objectMetadataItemWithFieldsMaps } =
-        await this.workflowCommonWorkspaceService.getObjectMetadataItemWithFieldsMaps(
-          objectName,
-          workspaceId,
-        );
+      const {
+        queryRunnerContext,
+        selectedFields,
+        flatObjectMetadata,
+        flatFieldMetadataMaps,
+      } = await this.commonApiContextBuilder.build({
+        authContext,
+        objectName,
+      });
 
       if (
         !canObjectBeManagedByWorkflow({
-          nameSingular: objectMetadataItemWithFieldsMaps.nameSingular,
-          isSystem: objectMetadataItemWithFieldsMaps.isSystem,
+          nameSingular: flatObjectMetadata.nameSingular,
+          isSystem: flatObjectMetadata.isSystem,
         })
       ) {
         throw new RecordCrudException(
@@ -66,52 +49,25 @@ export class CreateRecordService {
         );
       }
 
-      const position = await this.recordPositionService.buildRecordPosition({
-        value: 'first',
-        objectMetadata: objectMetadataItemWithFieldsMaps,
-        workspaceId,
-      });
+      // Pass createdBy explicitly if provided (for workflows)
+      // Common API hook will also inject createdBy from authContext if available
+      const actorMetadata = params.createdBy ?? {
+        source: FieldActorSource.WORKFLOW,
+        name: 'Workflow',
+      };
 
-      const validObjectRecord = Object.fromEntries(
-        Object.entries(objectRecord).filter(
-          ([key]) =>
-            isDefined(objectMetadataItemWithFieldsMaps.fieldIdByName[key]) ||
-            isDefined(
-              objectMetadataItemWithFieldsMaps.fieldIdByJoinColumnName[key],
-            ),
-        ),
-      );
+      // Clean undefined values from the record data (including nested composite fields)
+      // This prevents validation errors for partial composite field inputs
+      const cleanedRecord = removeUndefinedFromRecord(objectRecord);
+      const dataWithActor = { ...cleanedRecord, createdBy: actorMetadata };
 
-      const transformedObjectRecord =
-        await this.recordInputTransformerService.process({
-          recordInput: validObjectRecord,
-          objectMetadataMapItem: objectMetadataItemWithFieldsMaps,
-        });
-
-      const restrictedFields =
-        repository.objectRecordsPermissions?.[
-          objectMetadataItemWithFieldsMaps.id
-        ]?.restrictedFields;
-
-      const selectedColumns = getSelectedColumnsFromRestrictedFields(
-        restrictedFields,
-        objectMetadataItemWithFieldsMaps,
-      );
-
-      const insertResult = await repository.insert(
+      const createdRecord = await this.commonCreateOneRunner.execute(
         {
-          ...transformedObjectRecord,
-          position,
-          createdBy: params.createdBy ?? {
-            source: FieldActorSource.WORKFLOW,
-            name: 'Workflow',
-          },
+          data: dataWithActor,
+          selectedFields,
         },
-        undefined,
-        selectedColumns,
+        queryRunnerContext,
       );
-
-      const [createdRecord] = insertResult.generatedMaps;
 
       this.logger.log(`Record created successfully in ${objectName}`);
 
@@ -119,6 +75,17 @@ export class CreateRecordService {
         success: true,
         message: `Record created successfully in ${objectName}`,
         result: createdRecord,
+        recordReferences: [
+          {
+            objectNameSingular: objectName,
+            recordId: createdRecord.id,
+            displayName: getRecordDisplayName(
+              createdRecord,
+              flatObjectMetadata,
+              flatFieldMetadataMaps,
+            ),
+          },
+        ],
       };
     } catch (error) {
       if (error instanceof RecordCrudException) {

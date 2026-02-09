@@ -106,7 +106,10 @@ describe('Object metadata update should fail', () => {
     async ({ context }) => {
       const updatePayload =
         typeof context === 'function'
-          ? context({ numberFieldMetadataId, objectMetadataId })
+          ? context({
+              numberFieldMetadataId,
+              objectMetadataId,
+            })
           : context;
 
       const { errors } = await updateOneObjectMetadata({

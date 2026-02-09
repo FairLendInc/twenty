@@ -8,21 +8,21 @@ import { originalDragSelectionComponentState } from '@/object-record/record-drag
 import { processGroupDrop } from '@/object-record/record-drag/utils/processGroupDrop';
 import { recordGroupDefinitionFamilyState } from '@/object-record/record-group/states/recordGroupDefinitionFamilyState';
 import { RECORD_INDEX_REMOVE_SORTING_MODAL_ID } from '@/object-record/record-index/constants/RecordIndexRemoveSortingModalId';
+import { recordIndexGroupFieldMetadataItemComponentState } from '@/object-record/record-index/states/recordIndexGroupFieldMetadataComponentState';
 import { recordIndexRecordIdsByGroupComponentFamilyState } from '@/object-record/record-index/states/recordIndexRecordIdsByGroupComponentFamilyState';
 import { currentRecordSortsComponentState } from '@/object-record/record-sort/states/currentRecordSortsComponentState';
 import { useRecordTableContextOrThrow } from '@/object-record/record-table/contexts/RecordTableContext';
 import { selectedRowIdsComponentSelector } from '@/object-record/record-table/states/selectors/selectedRowIdsComponentSelector';
 import { useModal } from '@/ui/layout/modal/hooks/useModal';
 import { useRecoilComponentCallbackState } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentCallbackState';
+import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
 import { getSnapshotValue } from '@/ui/utilities/state/utils/getSnapshotValue';
 
 export const useProcessTableWithGroupRecordDrop = () => {
   const { objectNameSingular, objectMetadataItem, recordTableId } =
     useRecordTableContextOrThrow();
 
-  const { updateOneRecord: updateOneRow } = useUpdateOneRecord({
-    objectNameSingular,
-  });
+  const { updateOneRecord } = useUpdateOneRecord();
 
   const { openModal } = useModal();
 
@@ -47,6 +47,10 @@ export const useProcessTableWithGroupRecordDrop = () => {
     originalDragSelectionComponentState,
   );
 
+  const groupFieldMetadata = useRecoilComponentValue(
+    recordIndexGroupFieldMetadataItemComponentState,
+  );
+
   const processTableWithGroupRecordDrop = useRecoilCallback(
     ({ snapshot }) =>
       (result: DropResult) => {
@@ -63,7 +67,7 @@ export const useProcessTableWithGroupRecordDrop = () => {
         }
 
         const fieldMetadata = objectMetadataItem.fields.find(
-          (field) => field.id === destinationRecordGroup.fieldMetadataId,
+          (field) => field.id === groupFieldMetadata?.id,
         );
 
         if (!isDefined(fieldMetadata)) {
@@ -99,7 +103,8 @@ export const useProcessTableWithGroupRecordDrop = () => {
           selectedRecordIds,
           recordIdsByGroupFamilyState: recordIdsByGroupFamilyState,
           onUpdateRecord: ({ recordId, position }) => {
-            updateOneRow({
+            updateOneRecord({
+              objectNameSingular,
               idToUpdate: recordId,
               updateOneRecordInput: {
                 position,
@@ -110,14 +115,16 @@ export const useProcessTableWithGroupRecordDrop = () => {
         });
       },
     [
-      currentRecordSortsCallbackState,
+      objectNameSingular,
       objectMetadataItem.fields,
-      recordIdsByGroupFamilyState,
-      updateOneRow,
-      openModal,
-      selectedRowIdsSelector,
       originalDragSelectionCallbackState,
       isDraggingRecordCallbackState,
+      selectedRowIdsSelector,
+      currentRecordSortsCallbackState,
+      recordIdsByGroupFamilyState,
+      groupFieldMetadata?.id,
+      openModal,
+      updateOneRecord,
     ],
   );
 

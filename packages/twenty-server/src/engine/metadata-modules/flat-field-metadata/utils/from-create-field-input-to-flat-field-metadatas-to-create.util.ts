@@ -10,10 +10,12 @@ import {
 } from 'twenty-shared/utils';
 import { v4 } from 'uuid';
 
+import { type FlatApplication } from 'src/engine/core-modules/application/types/flat-application.type';
 import { type CreateFieldInput } from 'src/engine/metadata-modules/field-metadata/dtos/create-field.input';
 import { FieldMetadataExceptionCode } from 'src/engine/metadata-modules/field-metadata/field-metadata.exception';
 import { generateRatingOptions } from 'src/engine/metadata-modules/field-metadata/utils/generate-rating-optionts.util';
 import { type AllFlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/types/all-flat-entity-maps.type';
+import { findFlatEntityByIdInFlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/utils/find-flat-entity-by-id-in-flat-entity-maps.util';
 import { type FieldInputTranspilationResult } from 'src/engine/metadata-modules/flat-field-metadata/types/field-input-transpilation-result.type';
 import { type FlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata.type';
 import { fromMorphRelationCreateFieldInputToFlatFieldMetadatas } from 'src/engine/metadata-modules/flat-field-metadata/utils/from-morph-relation-create-field-input-to-flat-field-metadatas.util';
@@ -25,12 +27,15 @@ import { type FlatIndexMetadata } from 'src/engine/metadata-modules/flat-index-m
 export type FromCreateFieldInputToFlatObjectMetadataArgs = {
   createFieldInput: Omit<CreateFieldInput, 'workspaceId'>;
   workspaceId: string;
-} & Pick<AllFlatEntityMaps, 'flatObjectMetadataMaps'>;
+  flatApplication: FlatApplication;
+} & Pick<AllFlatEntityMaps, 'flatObjectMetadataMaps' | 'flatFieldMetadataMaps'>;
 
 export const fromCreateFieldInputToFlatFieldMetadatasToCreate = async ({
   createFieldInput: rawCreateFieldInput,
   workspaceId,
   flatObjectMetadataMaps: existingFlatObjectMetadataMaps,
+  flatFieldMetadataMaps: existingFlatFieldMetadataMaps,
+  flatApplication,
 }: FromCreateFieldInputToFlatObjectMetadataArgs): Promise<
   FieldInputTranspilationResult<{
     flatFieldMetadatas: FlatFieldMetadata[];
@@ -40,10 +45,12 @@ export const fromCreateFieldInputToFlatFieldMetadatasToCreate = async ({
   if (rawCreateFieldInput.isRemoteCreation) {
     return {
       status: 'fail',
-      error: {
-        code: FieldMetadataExceptionCode.INVALID_FIELD_INPUT,
-        message: "Remote fields aren't supported",
-      },
+      errors: [
+        {
+          code: FieldMetadataExceptionCode.INVALID_FIELD_INPUT,
+          message: "Remote fields aren't supported",
+        },
+      ],
     };
   }
 
@@ -52,17 +59,21 @@ export const fromCreateFieldInputToFlatFieldMetadatasToCreate = async ({
       rawCreateFieldInput,
       ['description', 'icon', 'label', 'name', 'objectMetadataId', 'type'],
     );
-  const parentFlatObjectMetadata =
-    existingFlatObjectMetadataMaps.byId[createFieldInput.objectMetadataId];
+  const parentFlatObjectMetadata = findFlatEntityByIdInFlatEntityMaps({
+    flatEntityId: createFieldInput.objectMetadataId,
+    flatEntityMaps: existingFlatObjectMetadataMaps,
+  });
 
   if (!isDefined(parentFlatObjectMetadata)) {
     return {
       status: 'fail',
-      error: {
-        code: FieldMetadataExceptionCode.OBJECT_METADATA_NOT_FOUND,
-        message: 'Provided object metadata id does not exist',
-        userFriendlyMessage: msg`Created field metadata, parent object metadata not found`,
-      },
+      errors: [
+        {
+          code: FieldMetadataExceptionCode.OBJECT_METADATA_NOT_FOUND,
+          message: 'Provided object metadata id does not exist',
+          userFriendlyMessage: msg`Created field metadata, parent object metadata not found`,
+        },
+      ],
     };
   }
 
@@ -71,6 +82,9 @@ export const fromCreateFieldInputToFlatFieldMetadatasToCreate = async ({
     createFieldInput,
     workspaceId,
     fieldMetadataId,
+    flatApplication,
+    objectMetadataUniversalIdentifier:
+      parentFlatObjectMetadata.universalIdentifier,
   });
 
   switch (createFieldInput.type) {
@@ -81,19 +95,23 @@ export const fromCreateFieldInputToFlatFieldMetadatasToCreate = async ({
           type: createFieldInput.type,
         },
         existingFlatObjectMetadataMaps,
+        existingFlatFieldMetadataMaps,
         sourceFlatObjectMetadata: parentFlatObjectMetadata,
         workspaceId,
+        flatApplication,
       });
     }
     case FieldMetadataType.RELATION: {
       return await fromRelationCreateFieldInputToFlatFieldMetadatas({
         existingFlatObjectMetadataMaps,
+        existingFlatFieldMetadataMaps,
         sourceFlatObjectMetadata: parentFlatObjectMetadata,
         createFieldInput: {
           ...createFieldInput,
           type: createFieldInput.type,
         },
         workspaceId,
+        flatApplication,
       });
     }
     case FieldMetadataType.RATING: {
@@ -107,6 +125,7 @@ export const fromCreateFieldInputToFlatFieldMetadatasToCreate = async ({
               settings: null,
               defaultValue: commonFlatFieldMetadata.defaultValue as string, // Could this be improved ?
               options: generateRatingOptions(),
+              universalSettings: null,
             } satisfies FlatFieldMetadata<typeof createFieldInput.type>,
           ],
           indexMetadatas: [],
@@ -135,6 +154,7 @@ export const fromCreateFieldInputToFlatFieldMetadatasToCreate = async ({
               options,
               defaultValue: commonFlatFieldMetadata.defaultValue as string, // Could this be improved ?
               settings: null,
+              universalSettings: null,
             } satisfies FlatFieldMetadata<typeof createFieldInput.type>,
           ],
           indexMetadatas: [],
@@ -144,10 +164,12 @@ export const fromCreateFieldInputToFlatFieldMetadatasToCreate = async ({
     case FieldMetadataType.TS_VECTOR: {
       return {
         status: 'fail',
-        error: {
-          code: FieldMetadataExceptionCode.INVALID_FIELD_INPUT,
-          message: 'TS Vector is not supported for field creation',
-        },
+        errors: [
+          {
+            code: FieldMetadataExceptionCode.INVALID_FIELD_INPUT,
+            message: 'TS Vector is not supported for field creation',
+          },
+        ],
       };
     }
     case FieldMetadataType.UUID:
@@ -161,6 +183,7 @@ export const fromCreateFieldInputToFlatFieldMetadatasToCreate = async ({
     case FieldMetadataType.NUMERIC:
     case FieldMetadataType.LINKS:
     case FieldMetadataType.CURRENCY:
+    case FieldMetadataType.FILES:
     case FieldMetadataType.FULL_NAME:
     case FieldMetadataType.POSITION:
     case FieldMetadataType.ADDRESS:

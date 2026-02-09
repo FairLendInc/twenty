@@ -1,4 +1,3 @@
-//TODO:
 import { FieldMetadataType } from '../FieldMetadataType';
 import { actorCompositeType } from './actor.composite-type';
 import { addressCompositeType } from './address.composite-type';

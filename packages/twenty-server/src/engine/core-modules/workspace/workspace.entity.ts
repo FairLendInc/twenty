@@ -1,7 +1,7 @@
 import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
 
 import { IDField } from '@ptc-org/nestjs-query-graphql';
-import { Application } from 'cloudflare/resources/zero-trust/access/applications/applications';
+import { type Application } from 'cloudflare/resources/zero-trust/access/applications/applications';
 import { WorkspaceActivationStatus } from 'twenty-shared/workspace';
 import {
   Check,
@@ -14,15 +14,15 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
-  Relation,
+  type Relation,
   UpdateDateColumn,
 } from 'typeorm';
 
 import { UUIDScalarType } from 'src/engine/api/graphql/workspace-schema-builder/graphql-types/scalars';
-import { ModelId } from 'src/engine/core-modules/ai/constants/ai-models.const';
 import { ApiKeyEntity } from 'src/engine/core-modules/api-key/api-key.entity';
 import { AppTokenEntity } from 'src/engine/core-modules/app-token/app-token.entity';
 import { ApplicationEntity } from 'src/engine/core-modules/application/application.entity';
+import { ApplicationDTO } from 'src/engine/core-modules/application/dtos/application.dto';
 import { ApprovedAccessDomainEntity } from 'src/engine/core-modules/approved-access-domain/approved-access-domain.entity';
 import { EmailingDomainEntity } from 'src/engine/core-modules/emailing-domain/emailing-domain.entity';
 import { FeatureFlagEntity } from 'src/engine/core-modules/feature-flag/feature-flag.entity';
@@ -31,9 +31,12 @@ import { PostgresCredentialsEntity } from 'src/engine/core-modules/postgres-cred
 import { PublicDomainEntity } from 'src/engine/core-modules/public-domain/public-domain.entity';
 import { WorkspaceSSOIdentityProviderEntity } from 'src/engine/core-modules/sso/workspace-sso-identity-provider.entity';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
-import { WebhookEntity } from 'src/engine/core-modules/webhook/webhook.entity';
-import { AgentHandoffEntity } from 'src/engine/metadata-modules/agent/agent-handoff.entity';
-import { AgentEntity } from 'src/engine/metadata-modules/agent/agent.entity';
+import { AgentEntity } from 'src/engine/metadata-modules/ai/ai-agent/entities/agent.entity';
+import {
+  DEFAULT_FAST_MODEL,
+  DEFAULT_SMART_MODEL,
+  type ModelId,
+} from 'src/engine/metadata-modules/ai/ai-models/constants/ai-models.const';
 import { RoleDTO } from 'src/engine/metadata-modules/role/dtos/role.dto';
 import { ViewFieldDTO } from 'src/engine/metadata-modules/view-field/dtos/view-field.dto';
 import { ViewFieldEntity } from 'src/engine/metadata-modules/view-field/entities/view-field.entity';
@@ -47,6 +50,7 @@ import { ViewSortDTO } from 'src/engine/metadata-modules/view-sort/dtos/view-sor
 import { ViewSortEntity } from 'src/engine/metadata-modules/view-sort/entities/view-sort.entity';
 import { ViewDTO } from 'src/engine/metadata-modules/view/dtos/view.dto';
 import { ViewEntity } from 'src/engine/metadata-modules/view/entities/view.entity';
+import { WebhookEntity } from 'src/engine/metadata-modules/webhook/entities/webhook.entity';
 
 registerEnumType(WorkspaceActivationStatus, {
   name: 'WorkspaceActivationStatus',
@@ -100,6 +104,10 @@ export class WorkspaceEntity {
   @Column({ type: 'integer', default: 14 })
   trashRetentionDays: number;
 
+  @Field()
+  @Column({ type: 'integer', default: 90 })
+  eventLogRetentionDays: number;
+
   // Relations
   @OneToMany(() => AppTokenEntity, (appToken) => appToken.workspace, {
     cascade: true,
@@ -117,7 +125,7 @@ export class WorkspaceEntity {
 
   @OneToMany(
     () => UserWorkspaceEntity,
-    (userWorkspace: UserWorkspaceEntity) => userWorkspace.workspace,
+    (userWorkspace) => userWorkspace.workspace,
     {
       onDelete: 'CASCADE',
     },
@@ -155,6 +163,9 @@ export class WorkspaceEntity {
   @Index('IDX_WORKSPACE_ACTIVATION_STATUS')
   activationStatus: WorkspaceActivationStatus;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  suspendedAt: Date | null;
+
   @OneToMany(
     () => PostgresCredentialsEntity,
     (postgresCredentials) => postgresCredentials.workspace,
@@ -171,11 +182,6 @@ export class WorkspaceEntity {
     onDelete: 'CASCADE',
   })
   agents: Relation<AgentEntity[]>;
-
-  @OneToMany(() => AgentHandoffEntity, (handoff) => handoff.workspace, {
-    onDelete: 'CASCADE',
-  })
-  agentHandoffs: Relation<AgentHandoffEntity[]>;
 
   @OneToMany(() => WebhookEntity, (webhook) => webhook.workspace)
   webhooks: Relation<WebhookEntity[]>;
@@ -283,15 +289,24 @@ export class WorkspaceEntity {
   version: string | null;
 
   @Field(() => String, { nullable: false })
+  @Column({ type: 'varchar', nullable: false, default: DEFAULT_FAST_MODEL })
+  fastModel: ModelId;
+
+  @Field(() => String, { nullable: false })
+  @Column({ type: 'varchar', nullable: false, default: DEFAULT_SMART_MODEL })
+  smartModel: ModelId;
+
+  @Column({ nullable: false, type: 'uuid' })
+  workspaceCustomApplicationId: string;
+
+  // TODO: delete
+  // This is deprecated
+  // If we are in December 2025 you can remove this column from DB
+  @Field(() => String, { nullable: false })
   @Column({ type: 'varchar', nullable: false, default: 'auto' })
   routerModel: ModelId;
 
-  // TODO prastoin
-  // Temporarily setting as nullable for retro compatibility, not udpating TypeScript types
-  @Field(() => String, { nullable: true })
-  @Column({ nullable: true, type: 'uuid' })
-  workspaceCustomApplicationId: string;
-
+  @Field(() => ApplicationDTO, { nullable: true })
   @ManyToOne(() => ApplicationEntity, {
     onDelete: 'RESTRICT',
     nullable: false,

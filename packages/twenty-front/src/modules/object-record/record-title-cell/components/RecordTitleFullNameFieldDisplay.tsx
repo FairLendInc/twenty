@@ -6,19 +6,19 @@ import { usePushFocusItemToFocusStack } from '@/ui/utilities/focus/hooks/usePush
 import { FocusComponentType } from '@/ui/utilities/focus/types/FocusComponentType';
 import { withTheme, type Theme } from '@emotion/react';
 import styled from '@emotion/styled';
+import { t } from '@lingui/core/macro';
 import { isNonEmptyString } from '@sniptt/guards';
 import { useContext } from 'react';
 import { OverflowingTextWithTooltip } from 'twenty-ui/display';
 
 const StyledDiv = styled.div`
-  align-items: center;
   background: inherit;
   border: none;
   border-radius: ${({ theme }) => theme.border.radius.sm};
   color: ${({ theme }) => theme.font.color.primary};
   cursor: pointer;
   overflow: hidden;
-  height: 28px;
+  height: 24px;
   padding: ${({ theme }) => theme.spacing(0, 1.25)};
   box-sizing: border-box;
   display: flex;
@@ -73,7 +73,7 @@ export const RecordTitleFullNameFieldDisplay = ({
 
         openRecordTitleCell({
           recordId,
-          fieldName: fieldDefinition.metadata.fieldName,
+          fieldMetadataItemId: fieldDefinition.fieldMetadataId,
           instanceId: getRecordFieldInputInstanceId({
             recordId,
             fieldName: fieldDefinition.metadata.fieldName,
@@ -83,7 +83,7 @@ export const RecordTitleFullNameFieldDisplay = ({
       }}
     >
       {!content ? (
-        <StyledEmptyText>Untitled</StyledEmptyText>
+        <StyledEmptyText>{t`Untitled`}</StyledEmptyText>
       ) : (
         <OverflowingTextWithTooltip
           text={isNonEmptyString(content) ? content : fieldDefinition.label}

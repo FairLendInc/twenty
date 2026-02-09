@@ -8,8 +8,9 @@ import { DataSource } from 'typeorm';
 
 import { FeatureFlagKey } from 'src/engine/core-modules/feature-flag/enums/feature-flag-key.enum';
 import { FileStorageService } from 'src/engine/core-modules/file-storage/file-storage.service';
-import { ObjectMetadataServiceV2 } from 'src/engine/metadata-modules/object-metadata/object-metadata-v2.service';
-import { ObjectMetadataEntity } from 'src/engine/metadata-modules/object-metadata/object-metadata.entity';
+import { WorkspaceManyOrAllFlatEntityMapsCacheService } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.service';
+import { FlatObjectMetadata } from 'src/engine/metadata-modules/flat-object-metadata/types/flat-object-metadata.type';
+import { ObjectMetadataService } from 'src/engine/metadata-modules/object-metadata/object-metadata.service';
 import { type WorkspaceEntityManager } from 'src/engine/twenty-orm/entity-manager/workspace-entity-manager';
 import { computeTableName } from 'src/engine/utils/compute-table-name.util';
 import {
@@ -44,6 +45,10 @@ import {
   DASHBOARD_DATA_SEED_COLUMNS,
   getDashboardDataSeeds,
 } from 'src/engine/workspace-manager/dev-seeder/data/constants/dashboard-data-seeds.constant';
+import {
+  EMPLOYMENT_HISTORY_DATA_SEED_COLUMNS,
+  EMPLOYMENT_HISTORY_DATA_SEEDS,
+} from 'src/engine/workspace-manager/dev-seeder/data/constants/employment-history-data-seeds.constant';
 import {
   MESSAGE_CHANNEL_DATA_SEED_COLUMNS,
   MESSAGE_CHANNEL_DATA_SEEDS,
@@ -80,6 +85,10 @@ import {
   PERSON_DATA_SEED_COLUMNS,
   PERSON_DATA_SEEDS,
 } from 'src/engine/workspace-manager/dev-seeder/data/constants/person-data-seeds.constant';
+import {
+  PET_CARE_AGREEMENT_DATA_SEED_COLUMNS,
+  PET_CARE_AGREEMENT_DATA_SEEDS,
+} from 'src/engine/workspace-manager/dev-seeder/data/constants/pet-care-agreement-data-seeds.constant';
 import {
   PET_DATA_SEED_COLUMNS,
   PET_DATA_SEEDS,
@@ -207,6 +216,17 @@ const getRecordSeedsBatches = (
       pgColumns: MESSAGE_THREAD_DATA_SEED_COLUMNS,
       recordSeeds: MESSAGE_THREAD_DATA_SEEDS,
     },
+    // Junction tables
+    {
+      tableName: '_employmentHistory',
+      pgColumns: EMPLOYMENT_HISTORY_DATA_SEED_COLUMNS,
+      recordSeeds: EMPLOYMENT_HISTORY_DATA_SEEDS,
+    },
+    {
+      tableName: '_petCareAgreement',
+      pgColumns: PET_CARE_AGREEMENT_DATA_SEED_COLUMNS,
+      recordSeeds: PET_CARE_AGREEMENT_DATA_SEEDS,
+    },
   ];
 
   // Batch 5: Depends on batch 4 entities
@@ -265,9 +285,10 @@ export class DevSeederDataService {
   constructor(
     @InjectDataSource()
     private readonly coreDataSource: DataSource,
-    private readonly objectMetadataService: ObjectMetadataServiceV2,
+    private readonly objectMetadataService: ObjectMetadataService,
     private readonly timelineActivitySeederService: TimelineActivitySeederService,
     private readonly fileStorageService: FileStorageService,
+    private readonly flatEntityMapsCacheService: WorkspaceManyOrAllFlatEntityMapsCacheService,
   ) {}
 
   public async seed({
@@ -281,6 +302,14 @@ export class DevSeederDataService {
   }) {
     const objectMetadataItems =
       await this.objectMetadataService.findManyWithinWorkspace(workspaceId);
+
+    const { flatObjectMetadataMaps, flatFieldMetadataMaps } =
+      await this.flatEntityMapsCacheService.getOrRecomputeManyOrAllFlatEntityMaps(
+        {
+          workspaceId,
+          flatMapsKeys: ['flatObjectMetadataMaps', 'flatFieldMetadataMaps'],
+        },
+      );
 
     await this.coreDataSource.transaction(
       async (entityManager: WorkspaceEntityManager) => {
@@ -300,7 +329,12 @@ export class DevSeederDataService {
 
         await this.seedAttachmentFiles(workspaceId);
 
-        await prefillWorkflows(entityManager, schemaName, objectMetadataItems);
+        await prefillWorkflows(
+          entityManager,
+          schemaName,
+          flatObjectMetadataMaps,
+          flatFieldMetadataMaps,
+        );
       },
     );
   }
@@ -316,7 +350,7 @@ export class DevSeederDataService {
     schemaName: string;
     workspaceId: string;
     featureFlags?: Record<FeatureFlagKey, boolean>;
-    objectMetadataItems: ObjectMetadataEntity[];
+    objectMetadataItems: FlatObjectMetadata[];
   }) {
     const batches = getRecordSeedsBatches(workspaceId, featureFlags);
 
@@ -395,7 +429,7 @@ export class DevSeederDataService {
       const filePath = join(sampleFilesDir, filename);
       const fileBuffer = await readFile(filePath);
 
-      await this.fileStorageService.write({
+      await this.fileStorageService.writeFile({
         file: fileBuffer,
         name: filename,
         folder: `workspace-${workspaceId}/attachment`,

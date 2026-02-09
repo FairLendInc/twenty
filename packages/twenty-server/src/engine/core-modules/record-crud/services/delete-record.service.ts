@@ -3,41 +3,28 @@ import { Injectable, Logger } from '@nestjs/common';
 import { isDefined, isValidUuid } from 'twenty-shared/utils';
 import { canObjectBeManagedByWorkflow } from 'twenty-shared/workflow';
 
+import { CommonDeleteOneQueryRunnerService } from 'src/engine/api/common/common-query-runners/common-delete-one-query-runner.service';
+import { CommonDestroyOneQueryRunnerService } from 'src/engine/api/common/common-query-runners/common-destroy-one-query-runner.service';
 import {
   RecordCrudException,
   RecordCrudExceptionCode,
 } from 'src/engine/core-modules/record-crud/exceptions/record-crud.exception';
+import { CommonApiContextBuilderService } from 'src/engine/core-modules/record-crud/services/common-api-context-builder.service';
 import { type DeleteRecordParams } from 'src/engine/core-modules/record-crud/types/delete-record-params.type';
 import { type ToolOutput } from 'src/engine/core-modules/tool/types/tool-output.type';
-import { TwentyORMGlobalManager } from 'src/engine/twenty-orm/twenty-orm-global.manager';
-import { WorkflowCommonWorkspaceService } from 'src/modules/workflow/common/workspace-services/workflow-common.workspace-service';
 
 @Injectable()
-// eslint-disable-next-line @nx/workspace-inject-workspace-repository
 export class DeleteRecordService {
   private readonly logger = new Logger(DeleteRecordService.name);
 
   constructor(
-    private readonly twentyORMGlobalManager: TwentyORMGlobalManager,
-    private readonly workflowCommonWorkspaceService: WorkflowCommonWorkspaceService,
+    private readonly commonDeleteOneRunner: CommonDeleteOneQueryRunnerService,
+    private readonly commonDestroyOneRunner: CommonDestroyOneQueryRunnerService,
+    private readonly commonApiContextBuilder: CommonApiContextBuilderService,
   ) {}
 
   async execute(params: DeleteRecordParams): Promise<ToolOutput> {
-    const {
-      objectName,
-      objectRecordId,
-      workspaceId,
-      rolePermissionConfig,
-      soft = true,
-    } = params;
-
-    if (!workspaceId) {
-      return {
-        success: false,
-        message: 'Failed to delete record: Workspace ID is required',
-        error: 'Workspace ID not found',
-      };
-    }
+    const { objectName, objectRecordId, authContext, soft = true } = params;
 
     if (!isDefined(objectRecordId) || !isValidUuid(objectRecordId)) {
       return {
@@ -48,23 +35,16 @@ export class DeleteRecordService {
     }
 
     try {
-      const repository =
-        await this.twentyORMGlobalManager.getRepositoryForWorkspace(
-          workspaceId,
+      const { queryRunnerContext, selectedFields, flatObjectMetadata } =
+        await this.commonApiContextBuilder.build({
+          authContext,
           objectName,
-          rolePermissionConfig,
-        );
-
-      const { objectMetadataItemWithFieldsMaps } =
-        await this.workflowCommonWorkspaceService.getObjectMetadataItemWithFieldsMaps(
-          objectName,
-          workspaceId,
-        );
+        });
 
       if (
         !canObjectBeManagedByWorkflow({
-          nameSingular: objectMetadataItemWithFieldsMaps.nameSingular,
-          isSystem: objectMetadataItemWithFieldsMaps.isSystem,
+          nameSingular: flatObjectMetadata.nameSingular,
+          isSystem: flatObjectMetadata.isSystem,
         })
       ) {
         throw new RecordCrudException(
@@ -73,26 +53,13 @@ export class DeleteRecordService {
         );
       }
 
-      const objectRecord = await repository.findOne({
-        where: {
-          id: objectRecordId,
-        },
-      });
-
-      if (!objectRecord) {
-        throw new RecordCrudException(
-          `Failed to delete: Record ${objectName} with id ${objectRecordId} not found`,
-          RecordCrudExceptionCode.RECORD_NOT_FOUND,
-        );
-      }
-
       if (soft) {
-        const columnsToReturnForSoftDelete: string[] = [];
-
-        await repository.softDelete(
-          objectRecordId,
-          undefined,
-          columnsToReturnForSoftDelete,
+        const deletedRecord = await this.commonDeleteOneRunner.execute(
+          {
+            id: objectRecordId,
+            selectedFields,
+          },
+          queryRunnerContext,
         );
 
         this.logger.log(`Record soft deleted successfully from ${objectName}`);
@@ -100,10 +67,16 @@ export class DeleteRecordService {
         return {
           success: true,
           message: `Record soft deleted successfully from ${objectName}`,
-          result: objectRecord,
+          result: deletedRecord,
         };
       } else {
-        await repository.remove(objectRecord);
+        const destroyedRecord = await this.commonDestroyOneRunner.execute(
+          {
+            id: objectRecordId,
+            selectedFields,
+          },
+          queryRunnerContext,
+        );
 
         this.logger.log(
           `Record permanently deleted successfully from ${objectName}`,
@@ -112,7 +85,7 @@ export class DeleteRecordService {
         return {
           success: true,
           message: `Record permanently deleted successfully from ${objectName}`,
-          result: { id: objectRecordId },
+          result: destroyedRecord,
         };
       }
     } catch (error) {

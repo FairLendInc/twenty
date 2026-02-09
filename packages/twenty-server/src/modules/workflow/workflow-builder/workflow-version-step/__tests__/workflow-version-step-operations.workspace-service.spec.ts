@@ -1,13 +1,21 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
-import { AgentEntity } from 'src/engine/metadata-modules/agent/agent.entity';
+import { ApplicationService } from 'src/engine/core-modules/application/services/application.service';
+import { AiAgentRoleService } from 'src/engine/metadata-modules/ai/ai-agent-role/ai-agent-role.service';
+import { AgentEntity } from 'src/engine/metadata-modules/ai/ai-agent/entities/agent.entity';
+import { createEmptyAllFlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/constant/create-empty-all-flat-entity-maps.constant';
+import { WorkspaceManyOrAllFlatEntityMapsCacheService } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.service';
+import { LogicFunctionRuntime } from 'src/engine/metadata-modules/logic-function/logic-function.entity';
+import { LogicFunctionService } from 'src/engine/metadata-modules/logic-function/services/logic-function.service';
+import { type FlatLogicFunction } from 'src/engine/metadata-modules/logic-function/types/flat-logic-function.type';
 import { ObjectMetadataEntity } from 'src/engine/metadata-modules/object-metadata/object-metadata.entity';
-import { type ServerlessFunctionEntity } from 'src/engine/metadata-modules/serverless-function/serverless-function.entity';
-import { ServerlessFunctionService } from 'src/engine/metadata-modules/serverless-function/serverless-function.service';
-import { ScopedWorkspaceContextFactory } from 'src/engine/twenty-orm/factories/scoped-workspace-context.factory';
-import { TwentyORMGlobalManager } from 'src/engine/twenty-orm/twenty-orm-global.manager';
+import { RoleTargetEntity } from 'src/engine/metadata-modules/role-target/role-target.entity';
+import { RoleEntity } from 'src/engine/metadata-modules/role/role.entity';
+import { GlobalWorkspaceOrmManager } from 'src/engine/twenty-orm/global-workspace-datasource/global-workspace-orm.manager';
+import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
 import { WorkflowCommonWorkspaceService } from 'src/modules/workflow/common/workspace-services/workflow-common.workspace-service';
+import { CodeStepBuildService } from 'src/modules/workflow/workflow-builder/workflow-version-step/code-step/services/code-step-build.service';
 import { WorkflowVersionStepOperationsWorkspaceService } from 'src/modules/workflow/workflow-builder/workflow-version-step/workflow-version-step-operations.workspace-service';
 import {
   type WorkflowAction,
@@ -18,22 +26,77 @@ const mockWorkspaceId = 'workspace-id';
 
 describe('WorkflowVersionStepOperationsWorkspaceService', () => {
   let service: WorkflowVersionStepOperationsWorkspaceService;
-  let twentyORMGlobalManager: jest.Mocked<TwentyORMGlobalManager>;
-  let serverlessFunctionService: jest.Mocked<ServerlessFunctionService>;
+  let globalWorkspaceOrmManager: jest.Mocked<GlobalWorkspaceOrmManager>;
+  let logicFunctionService: jest.Mocked<LogicFunctionService>;
+  let applicationService: jest.Mocked<ApplicationService>;
+  let codeStepBuildService: jest.Mocked<CodeStepBuildService>;
   let agentRepository: jest.Mocked<any>;
+  let roleTargetRepository: jest.Mocked<any>;
+  let roleRepository: jest.Mocked<any>;
   let objectMetadataRepository: jest.Mocked<any>;
   let workflowCommonWorkspaceService: jest.Mocked<WorkflowCommonWorkspaceService>;
+  let aiAgentRoleService: jest.Mocked<AiAgentRoleService>;
+  let workspaceCacheService: jest.Mocked<WorkspaceCacheService>;
+  let flatEntityMapsCacheService: jest.Mocked<WorkspaceManyOrAllFlatEntityMapsCacheService>;
 
   beforeEach(async () => {
-    serverlessFunctionService = {
-      createOneServerlessFunction: jest.fn(),
-      hasServerlessFunctionPublishedVersion: jest.fn(),
-      deleteOneServerlessFunction: jest.fn(),
-      duplicateServerlessFunction: jest.fn(),
-      createDraftFromPublishedVersion: jest.fn(),
-    } as unknown as jest.Mocked<ServerlessFunctionService>;
+    applicationService = {
+      findWorkspaceTwentyStandardAndCustomApplicationOrThrow: jest
+        .fn()
+        .mockResolvedValue({
+          workspaceCustomFlatApplication: {
+            universalIdentifier: 'app-universal-id',
+          },
+        }),
+    } as unknown as jest.Mocked<ApplicationService>;
+
+    codeStepBuildService = {
+      seedCodeStepFiles: jest.fn().mockResolvedValue({
+        sourceHandlerPath: 'workflow/logic-fn-id/src/index.ts',
+        builtHandlerPath: 'workflow/logic-fn-id/src/index.mjs',
+        checksum: 'seed-checksum',
+      }),
+      copySourceAndBuiltForNewCodeStep: jest.fn().mockResolvedValue(undefined),
+      duplicateCodeStepLogicFunction: jest.fn().mockResolvedValue({
+        id: 'new-function-id',
+        name: 'Test Function',
+        description: 'Test Description',
+        workspaceId: mockWorkspaceId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        deletedAt: null,
+        runtime: LogicFunctionRuntime.NODE22,
+        timeoutSeconds: 30,
+        sourceHandlerPath: 'src/index.ts',
+        builtHandlerPath: 'index.mjs',
+        handlerName: 'main',
+        checksum: null,
+        toolInputSchema: null,
+        isTool: false,
+        universalIdentifier: 'universal-id',
+        applicationId: 'application-id',
+        cronTriggerSettings: null,
+        databaseEventTriggerSettings: null,
+        httpRouteTriggerSettings: null,
+      }),
+    } as unknown as jest.Mocked<CodeStepBuildService>;
+
+    logicFunctionService = {
+      createOne: jest.fn(),
+      destroyOne: jest.fn(),
+    } as unknown as jest.Mocked<LogicFunctionService>;
 
     agentRepository = {
+      findOne: jest.fn(),
+      delete: jest.fn(),
+    };
+
+    roleTargetRepository = {
+      findOne: jest.fn(),
+      count: jest.fn(),
+    };
+
+    roleRepository = {
       findOne: jest.fn(),
       delete: jest.fn(),
     };
@@ -46,24 +109,47 @@ describe('WorkflowVersionStepOperationsWorkspaceService', () => {
       getObjectMetadataItemWithFieldsMaps: jest.fn(),
     } as unknown as jest.Mocked<WorkflowCommonWorkspaceService>;
 
-    twentyORMGlobalManager = {
-      getRepositoryForWorkspace: jest.fn(),
-    } as unknown as jest.Mocked<TwentyORMGlobalManager>;
+    aiAgentRoleService = {
+      deleteAgentOnlyRoleIfUnused: jest.fn(),
+    } as unknown as jest.Mocked<AiAgentRoleService>;
+
+    globalWorkspaceOrmManager = {
+      getRepository: jest.fn(),
+    } as unknown as jest.Mocked<GlobalWorkspaceOrmManager>;
+    workspaceCacheService = {
+      flush: jest.fn(),
+    } as unknown as jest.Mocked<WorkspaceCacheService>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WorkflowVersionStepOperationsWorkspaceService,
         {
-          provide: TwentyORMGlobalManager,
-          useValue: twentyORMGlobalManager,
+          provide: GlobalWorkspaceOrmManager,
+          useValue: globalWorkspaceOrmManager,
         },
         {
-          provide: ServerlessFunctionService,
-          useValue: serverlessFunctionService,
+          provide: LogicFunctionService,
+          useValue: logicFunctionService,
+        },
+        {
+          provide: ApplicationService,
+          useValue: applicationService,
+        },
+        {
+          provide: CodeStepBuildService,
+          useValue: codeStepBuildService,
         },
         {
           provide: getRepositoryToken(AgentEntity),
           useValue: agentRepository,
+        },
+        {
+          provide: getRepositoryToken(RoleTargetEntity),
+          useValue: roleTargetRepository,
+        },
+        {
+          provide: getRepositoryToken(RoleEntity),
+          useValue: roleRepository,
         },
         {
           provide: getRepositoryToken(ObjectMetadataEntity),
@@ -74,8 +160,21 @@ describe('WorkflowVersionStepOperationsWorkspaceService', () => {
           useValue: workflowCommonWorkspaceService,
         },
         {
-          provide: ScopedWorkspaceContextFactory,
-          useValue: {},
+          provide: AiAgentRoleService,
+          useValue: aiAgentRoleService,
+        },
+        {
+          provide: WorkspaceCacheService,
+          useValue: workspaceCacheService,
+        },
+        {
+          provide: WorkspaceManyOrAllFlatEntityMapsCacheService,
+          useValue: (flatEntityMapsCacheService = {
+            flushFlatEntityMaps: jest.fn(),
+            getOrRecomputeManyOrAllFlatEntityMaps: jest
+              .fn()
+              .mockResolvedValue(createEmptyAllFlatEntityMaps()),
+          } as unknown as jest.Mocked<WorkspaceManyOrAllFlatEntityMapsCacheService>),
         },
       ],
     }).compile();
@@ -84,7 +183,7 @@ describe('WorkflowVersionStepOperationsWorkspaceService', () => {
   });
 
   describe('runWorkflowVersionStepDeletionSideEffects', () => {
-    it('should delete serverless function when deleting code step', async () => {
+    it('should delete logic function when deleting code step', async () => {
       const step = {
         id: 'step-id',
         name: 'Code Step',
@@ -93,8 +192,7 @@ describe('WorkflowVersionStepOperationsWorkspaceService', () => {
         nextStepIds: [],
         settings: {
           input: {
-            serverlessFunctionId: 'function-id',
-            serverlessFunctionVersion: 'v1',
+            logicFunctionId: 'function-id',
           },
           outputSchema: {},
           errorHandlingOptions: {
@@ -104,21 +202,14 @@ describe('WorkflowVersionStepOperationsWorkspaceService', () => {
         },
       } as unknown as WorkflowAction;
 
-      serverlessFunctionService.hasServerlessFunctionPublishedVersion.mockResolvedValue(
-        false,
-      );
-
       await service.runWorkflowVersionStepDeletionSideEffects({
         step,
         workspaceId: mockWorkspaceId,
       });
 
-      expect(
-        serverlessFunctionService.deleteOneServerlessFunction,
-      ).toHaveBeenCalledWith({
+      expect(logicFunctionService.destroyOne).toHaveBeenCalledWith({
         id: 'function-id',
         workspaceId: mockWorkspaceId,
-        softDelete: false,
       });
     });
 
@@ -154,34 +245,79 @@ describe('WorkflowVersionStepOperationsWorkspaceService', () => {
         workspaceId: mockWorkspaceId,
       });
     });
+
+    it('should delete attached role when it is agent-only and unassigned elsewhere', async () => {
+      const step = {
+        id: 'step-id',
+        name: 'AI Agent Step',
+        type: WorkflowActionType.AI_AGENT,
+        valid: true,
+        nextStepIds: [],
+        settings: {
+          input: {
+            agentId: 'agent-id',
+            prompt: '',
+          },
+          outputSchema: {},
+          errorHandlingOptions: {
+            continueOnFailure: { value: false },
+            retryOnFailure: { value: false },
+          },
+        },
+      } as unknown as WorkflowAction;
+
+      agentRepository.findOne.mockResolvedValue({ id: 'agent-id' });
+      roleTargetRepository.findOne.mockResolvedValue({
+        id: 'role-target-id',
+        roleId: 'role-id',
+      });
+
+      await service.runWorkflowVersionStepDeletionSideEffects({
+        step,
+        workspaceId: mockWorkspaceId,
+      });
+
+      expect(agentRepository.delete).toHaveBeenCalledWith({
+        id: 'agent-id',
+        workspaceId: mockWorkspaceId,
+      });
+      expect(
+        aiAgentRoleService.deleteAgentOnlyRoleIfUnused,
+      ).toHaveBeenCalledWith({
+        roleId: 'role-id',
+        roleTargetId: 'role-target-id',
+        workspaceId: mockWorkspaceId,
+      });
+    });
   });
 
   describe('runStepCreationSideEffectsAndBuildStep', () => {
-    it('should create code step with serverless function', async () => {
-      const mockServerlessFunction = {
+    it('should create code step with logic function', async () => {
+      const mockFlatLogicFunction: FlatLogicFunction = {
         id: 'new-function-id',
         name: 'Test Function',
         description: 'Test Description',
-        latestVersion: 'v1',
-        publishedVersions: [],
         workspaceId: mockWorkspaceId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         deletedAt: null,
-        isActive: true,
-        isSystem: false,
-        isCustom: true,
-        isPublic: false,
-        runtime: 'nodejs',
+        runtime: LogicFunctionRuntime.NODE22,
         timeoutSeconds: 30,
-        layerArn: '',
-        layerName: '',
-        layerSize: 0,
-      } as unknown as ServerlessFunctionEntity;
+        sourceHandlerPath: 'src/index.ts',
+        builtHandlerPath: 'index.mjs',
+        handlerName: 'main',
+        checksum: null,
+        toolInputSchema: null,
+        isTool: false,
+        universalIdentifier: 'universal-id',
+        applicationId: 'application-id',
+        applicationUniversalIdentifier: 'application-universal-id',
+        cronTriggerSettings: null,
+        databaseEventTriggerSettings: null,
+        httpRouteTriggerSettings: null,
+      };
 
-      serverlessFunctionService.createOneServerlessFunction.mockResolvedValue(
-        mockServerlessFunction,
-      );
+      logicFunctionService.createOne.mockResolvedValue(mockFlatLogicFunction);
 
       const result = await service.runStepCreationSideEffectsAndBuildStep({
         type: WorkflowActionType.CODE,
@@ -193,16 +329,12 @@ describe('WorkflowVersionStepOperationsWorkspaceService', () => {
       const codeResult = result.builtStep as unknown as {
         settings: {
           input: {
-            serverlessFunctionId: string;
-            serverlessFunctionVersion: string;
+            logicFunctionId: string;
           };
         };
       };
 
-      expect(codeResult.settings.input.serverlessFunctionId).toBe(
-        'new-function-id',
-      );
-      expect(codeResult.settings.input.serverlessFunctionVersion).toBe('draft');
+      expect(codeResult.settings.input.logicFunctionId).toBe('new-function-id');
     });
 
     it('should create form step', async () => {
@@ -218,7 +350,7 @@ describe('WorkflowVersionStepOperationsWorkspaceService', () => {
   });
 
   describe('createStepForDuplicate', () => {
-    it('should duplicate code step with new serverless function', async () => {
+    it('should duplicate code step with new logic function', async () => {
       const originalStep = {
         id: 'original-id',
         type: WorkflowActionType.CODE,
@@ -226,36 +358,80 @@ describe('WorkflowVersionStepOperationsWorkspaceService', () => {
         valid: true,
         settings: {
           input: {
-            serverlessFunctionId: 'function-id',
-            serverlessFunctionVersion: 'v1',
+            logicFunctionId: 'function-id',
           },
         },
         nextStepIds: ['next-step'],
       } as unknown as WorkflowAction;
 
-      const mockNewServerlessFunction = {
+      const mockExistingFlatLogicFunction: FlatLogicFunction = {
+        id: 'function-id',
+        name: 'Existing Function',
+        description: 'Existing Description',
+        workspaceId: mockWorkspaceId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        deletedAt: null,
+        runtime: LogicFunctionRuntime.NODE22,
+        timeoutSeconds: 30,
+        sourceHandlerPath: 'workflow/function-id/src/index.ts',
+        builtHandlerPath: 'workflow/function-id/src/index.mjs',
+        handlerName: 'main',
+        checksum: 'existing-checksum',
+        toolInputSchema: null,
+        isTool: false,
+        universalIdentifier: 'existing-universal-id',
+        applicationId: 'application-id',
+        applicationUniversalIdentifier: 'application-universal-id',
+        cronTriggerSettings: null,
+        databaseEventTriggerSettings: null,
+        httpRouteTriggerSettings: null,
+      };
+
+      const mockNewFlatLogicFunction: FlatLogicFunction = {
         id: 'new-function-id',
         name: 'Test Function',
         description: 'Test Description',
-        latestVersion: 'v1',
-        publishedVersions: [],
         workspaceId: mockWorkspaceId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         deletedAt: null,
-        isActive: true,
-        isSystem: false,
-        isCustom: true,
-        isPublic: false,
-        runtime: 'nodejs',
+        runtime: LogicFunctionRuntime.NODE22,
         timeoutSeconds: 30,
-        layerArn: '',
-        layerName: '',
-        layerSize: 0,
-      } as unknown as ServerlessFunctionEntity;
+        sourceHandlerPath: 'src/index.ts',
+        builtHandlerPath: 'index.mjs',
+        handlerName: 'main',
+        checksum: null,
+        toolInputSchema: null,
+        isTool: false,
+        universalIdentifier: 'universal-id',
+        applicationId: 'application-id',
+        applicationUniversalIdentifier: 'application-universal-id',
+        cronTriggerSettings: null,
+        databaseEventTriggerSettings: null,
+        httpRouteTriggerSettings: null,
+      };
 
-      serverlessFunctionService.duplicateServerlessFunction.mockResolvedValue(
-        mockNewServerlessFunction,
+      const emptyMaps = createEmptyAllFlatEntityMaps();
+      const flatLogicFunctionMapsKey = 'flatLogicFunctionMaps' as const;
+
+      flatEntityMapsCacheService.getOrRecomputeManyOrAllFlatEntityMaps.mockResolvedValueOnce(
+        {
+          ...emptyMaps,
+          [flatLogicFunctionMapsKey]: {
+            byUniversalIdentifier: {
+              'existing-universal-id': mockExistingFlatLogicFunction,
+            },
+            universalIdentifierById: {
+              'function-id': 'existing-universal-id',
+            },
+            universalIdentifiersByApplicationId: {},
+          },
+        },
+      );
+
+      logicFunctionService.createOne.mockResolvedValue(
+        mockNewFlatLogicFunction,
       );
 
       const clonedStep = await service.cloneStep({
@@ -271,18 +447,20 @@ describe('WorkflowVersionStepOperationsWorkspaceService', () => {
       const codeResult = duplicateStep as unknown as {
         settings: {
           input: {
-            serverlessFunctionId: string;
-            serverlessFunctionVersion: string;
+            logicFunctionId: string;
           };
         };
       };
 
-      expect(codeResult.settings.input.serverlessFunctionId).toBe(
-        'new-function-id',
-      );
-      expect(codeResult.settings.input.serverlessFunctionVersion).toBe('draft');
+      expect(codeResult.settings.input.logicFunctionId).toBe('new-function-id');
 
       expect(duplicateStep.nextStepIds).toEqual([]);
+      expect(
+        codeStepBuildService.duplicateCodeStepLogicFunction,
+      ).toHaveBeenCalledWith({
+        existingLogicFunctionId: 'function-id',
+        workspaceId: mockWorkspaceId,
+      });
     });
 
     it('should duplicate non-code step', async () => {

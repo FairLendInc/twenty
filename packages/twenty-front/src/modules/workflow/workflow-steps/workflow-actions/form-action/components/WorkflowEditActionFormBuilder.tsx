@@ -1,4 +1,3 @@
-import { SidePanelHeader } from '@/command-menu/components/SidePanelHeader';
 import { FormFieldInputContainer } from '@/object-record/record-field/ui/form-types/components/FormFieldInputContainer';
 import { FormFieldInputInnerContainer } from '@/object-record/record-field/ui/form-types/components/FormFieldInputInnerContainer';
 import { FormFieldInputRowContainer } from '@/object-record/record-field/ui/form-types/components/FormFieldInputRowContainer';
@@ -9,12 +8,10 @@ import { DraggableList } from '@/ui/layout/draggable-list/components/DraggableLi
 import { type WorkflowFormAction } from '@/workflow/types/Workflow';
 import { WorkflowStepBody } from '@/workflow/workflow-steps/components/WorkflowStepBody';
 import { WorkflowStepFooter } from '@/workflow/workflow-steps/components/WorkflowStepFooter';
-import { FORM_ACTION } from '@/workflow/workflow-steps/workflow-actions/constants/actions/FormAction';
+import { WorkflowMessage } from '@/workflow/workflow-steps/workflow-actions/components/WorkflowMessage';
 import { WorkflowEditActionFormFieldSettings } from '@/workflow/workflow-steps/workflow-actions/form-action/components/WorkflowEditActionFormFieldSettings';
-import { WorkflowFormEmptyMessage } from '@/workflow/workflow-steps/workflow-actions/form-action/components/WorkflowFormEmptyMessage';
 import { type WorkflowFormActionField } from '@/workflow/workflow-steps/workflow-actions/form-action/types/WorkflowFormActionField';
 import { getDefaultFormFieldSettings } from '@/workflow/workflow-steps/workflow-actions/form-action/utils/getDefaultFormFieldSettings';
-import { useWorkflowActionHeader } from '@/workflow/workflow-steps/workflow-actions/hooks/useWorkflowActionHeader';
 import { css, useTheme } from '@emotion/react';
 import styled from '@emotion/styled';
 import { type OnDragEndResponder } from '@hello-pangea/dnd';
@@ -28,7 +25,6 @@ import {
   IconGripVertical,
   IconPlus,
   IconTrash,
-  useIcons,
 } from 'twenty-ui/display';
 import { LightIconButton } from 'twenty-ui/input';
 import { useDebouncedCallback } from 'use-debounce';
@@ -136,16 +132,9 @@ export const WorkflowEditActionFormBuilder = ({
   actionOptions,
 }: WorkflowEditActionFormBuilderProps) => {
   const theme = useTheme();
-  const { getIcon } = useIcons();
   const { t } = useLingui();
 
   const [formData, setFormData] = useState<FormData>(action.settings.input);
-
-  const { headerTitle, headerIcon, headerIconColor, headerType } =
-    useWorkflowActionHeader({
-      action,
-      defaultTitle: FORM_ACTION.defaultLabel,
-    });
 
   const [selectedField, setSelectedField] = useState<string | null>(null);
   const [hoveredField, setHoveredField] = useState<string | null>(null);
@@ -223,27 +212,12 @@ export const WorkflowEditActionFormBuilder = ({
 
   return (
     <>
-      <SidePanelHeader
-        onTitleChange={(newName: string) => {
-          if (actionOptions.readonly === true) {
-            return;
-          }
-
-          actionOptions.onActionUpdate({
-            ...action,
-            name: newName,
-          });
-        }}
-        Icon={getIcon(headerIcon)}
-        iconColor={headerIconColor}
-        initialTitle={headerTitle}
-        headerType={headerType}
-        disabled={actionOptions.readonly}
-        iconTooltip={FORM_ACTION.defaultLabel}
-      />
       <StyledWorkflowStepBody>
         {formData.length === 0 && (
-          <WorkflowFormEmptyMessage data-testid="empty-form-message" />
+          <WorkflowMessage
+            title={t`Add inputs to your form`}
+            description={t`Click on "Add Field" below to add the first input to your form. The form will pop up on the user's screen when the workflow is launched from a manual trigger. For other types of triggers, it will be displayed in the Workflow run record page.`}
+          />
         )}
         <DraggableList
           onDragEnd={handleDragEnd}

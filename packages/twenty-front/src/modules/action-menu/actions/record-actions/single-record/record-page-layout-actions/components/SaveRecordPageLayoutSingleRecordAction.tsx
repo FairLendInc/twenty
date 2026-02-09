@@ -1,33 +1,35 @@
 import { Action } from '@/action-menu/actions/components/Action';
 import { useSelectedRecordIdOrThrow } from '@/action-menu/actions/record-actions/single-record/hooks/useSelectedRecordIdOrThrow';
+import { useCommandMenu } from '@/command-menu/hooks/useCommandMenu';
 import { useContextStoreObjectMetadataItemOrThrow } from '@/context-store/hooks/useContextStoreObjectMetadataItemOrThrow';
-import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
-import { recordStoreFamilyState } from '@/object-record/record-store/states/recordStoreFamilyState';
-import { DEFAULT_RECORD_PAGE_LAYOUT_ID } from '@/page-layout/constants/DefaultRecordPageLayoutId';
+import { useRecordPageLayoutIdFromRecordStoreOrThrow } from '@/page-layout/hooks/useRecordPageLayoutIdFromRecordStoreOrThrow';
 import { useSavePageLayout } from '@/page-layout/hooks/useSavePageLayout';
 import { useSetIsPageLayoutInEditMode } from '@/page-layout/hooks/useSetIsPageLayoutInEditMode';
-import { useRecoilValue } from 'recoil';
 
 export const SaveRecordPageLayoutSingleRecordAction = () => {
-  const { objectMetadataItem } = useContextStoreObjectMetadataItemOrThrow();
-
   const recordId = useSelectedRecordIdOrThrow();
 
-  const selectedRecord = useRecoilValue(recordStoreFamilyState(recordId));
+  const { objectMetadataItem } = useContextStoreObjectMetadataItemOrThrow();
 
-  const pageLayoutId =
-    objectMetadataItem.nameSingular === CoreObjectNameSingular.Company
-      ? DEFAULT_RECORD_PAGE_LAYOUT_ID
-      : selectedRecord?.pageLayoutId;
+  const { pageLayoutId } = useRecordPageLayoutIdFromRecordStoreOrThrow({
+    id: recordId,
+    targetObjectNameSingular: objectMetadataItem.nameSingular,
+  });
 
   const { savePageLayout } = useSavePageLayout(pageLayoutId);
 
   const { setIsPageLayoutInEditMode } =
     useSetIsPageLayoutInEditMode(pageLayoutId);
 
+  const { closeCommandMenu } = useCommandMenu();
+
   const handleClick = async () => {
-    await savePageLayout();
-    setIsPageLayoutInEditMode(false);
+    const result = await savePageLayout();
+
+    if (result.status === 'successful') {
+      closeCommandMenu();
+      setIsPageLayoutInEditMode(false);
+    }
   };
 
   return <Action onClick={handleClick} />;

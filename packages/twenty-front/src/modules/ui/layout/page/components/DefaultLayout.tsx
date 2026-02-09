@@ -1,8 +1,8 @@
 import { AuthModal } from '@/auth/components/AuthModal';
-import { CommandMenuRouter } from '@/command-menu/components/CommandMenuRouter';
 import { AppErrorBoundary } from '@/error-handler/components/AppErrorBoundary';
 import { AppFullScreenErrorFallback } from '@/error-handler/components/AppFullScreenErrorFallback';
 import { AppPageErrorFallback } from '@/error-handler/components/AppPageErrorFallback';
+import { FileUploadProvider } from '@/file-upload/components/FileUploadProvider';
 import { InformationBannerIsImpersonating } from '@/information-banner/components/impersonate/InformationBannerIsImpersonating';
 import { KeyboardShortcutMenu } from '@/keyboard-shortcut-menu/components/KeyboardShortcutMenu';
 import { AppNavigationDrawer } from '@/navigation/components/AppNavigationDrawer';
@@ -13,7 +13,7 @@ import { SignInAppNavigationDrawerMock } from '@/sign-in-background-mock/compone
 import { SignInBackgroundMockPage } from '@/sign-in-background-mock/components/SignInBackgroundMockPage';
 import { useShowFullscreen } from '@/ui/layout/fullscreen/hooks/useShowFullscreen';
 import { useShowAuthModal } from '@/ui/layout/hooks/useShowAuthModal';
-import { NAV_DRAWER_WIDTHS } from '@/ui/navigation/navigation-drawer/constants/NavDrawerWidths';
+import { NAVIGATION_DRAWER_CONSTRAINTS } from '@/ui/layout/resizable-panel/constants/NavigationDrawerConstraints';
 import { useIsMobile } from '@/ui/utilities/responsive/hooks/useIsMobile';
 import { Global, css, useTheme } from '@emotion/react';
 import styled from '@emotion/styled';
@@ -74,59 +74,56 @@ export const DefaultLayout = () => {
           }
         `}
       />
-      <StyledLayout>
-        <AppErrorBoundary FallbackComponent={AppFullScreenErrorFallback}>
-          <InformationBannerIsImpersonating />
-          <StyledPageContainer
-            animate={{
-              marginLeft:
-                isSettingsPage && !isMobile && !useShowFullScreen
-                  ? (windowsWidth -
-                      (OBJECT_SETTINGS_WIDTH +
-                        NAV_DRAWER_WIDTHS.menu.desktop.expanded +
-                        76)) /
-                    2
-                  : 0,
-            }}
-            transition={{
-              duration: theme.animation.duration.normal,
-            }}
-          >
-            {!showAuthModal && (
-              <>
-                <CommandMenuRouter />
-                <KeyboardShortcutMenu />
-              </>
-            )}
-            {showAuthModal ? (
-              <StyledAppNavigationDrawerMock />
-            ) : useShowFullScreen ? null : (
-              <StyledAppNavigationDrawer />
-            )}
-            {showAuthModal ? (
-              <>
+      <FileUploadProvider>
+        <StyledLayout>
+          <AppErrorBoundary FallbackComponent={AppFullScreenErrorFallback}>
+            <InformationBannerIsImpersonating />
+            <StyledPageContainer
+              animate={{
+                marginLeft:
+                  isSettingsPage && !isMobile && !useShowFullScreen
+                    ? (windowsWidth -
+                        (OBJECT_SETTINGS_WIDTH +
+                          NAVIGATION_DRAWER_CONSTRAINTS.default +
+                          76)) /
+                      2
+                    : 0,
+              }}
+              transition={{
+                duration: theme.animation.duration.normal,
+              }}
+            >
+              {!showAuthModal && <KeyboardShortcutMenu />}
+              {showAuthModal ? (
+                <StyledAppNavigationDrawerMock />
+              ) : useShowFullScreen ? null : (
+                <StyledAppNavigationDrawer />
+              )}
+              {showAuthModal ? (
+                <>
+                  <StyledMainContainer>
+                    <SignInBackgroundMockPage />
+                  </StyledMainContainer>
+                  <AnimatePresence mode="wait">
+                    <LayoutGroup>
+                      <AuthModal>
+                        <Outlet />
+                      </AuthModal>
+                    </LayoutGroup>
+                  </AnimatePresence>
+                </>
+              ) : (
                 <StyledMainContainer>
-                  <SignInBackgroundMockPage />
+                  <AppErrorBoundary FallbackComponent={AppPageErrorFallback}>
+                    <Outlet />
+                  </AppErrorBoundary>
                 </StyledMainContainer>
-                <AnimatePresence mode="wait">
-                  <LayoutGroup>
-                    <AuthModal>
-                      <Outlet />
-                    </AuthModal>
-                  </LayoutGroup>
-                </AnimatePresence>
-              </>
-            ) : (
-              <StyledMainContainer>
-                <AppErrorBoundary FallbackComponent={AppPageErrorFallback}>
-                  <Outlet />
-                </AppErrorBoundary>
-              </StyledMainContainer>
-            )}
-          </StyledPageContainer>
-          {isMobile && !showAuthModal && <MobileNavigationBar />}
-        </AppErrorBoundary>
-      </StyledLayout>
+              )}
+            </StyledPageContainer>
+            {isMobile && !showAuthModal && <MobileNavigationBar />}
+          </AppErrorBoundary>
+        </StyledLayout>
+      </FileUploadProvider>
     </>
   );
 };

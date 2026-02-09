@@ -1,4 +1,3 @@
-import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 
@@ -10,7 +9,7 @@ import { v4 } from 'uuid';
 
 import { USER_SIGNUP_EVENT_NAME } from 'src/engine/api/graphql/workspace-query-runner/constants/user-signup-event-name.constants';
 import { type AppTokenEntity } from 'src/engine/core-modules/app-token/app-token.entity';
-import { ApplicationService } from 'src/engine/core-modules/application/application.service';
+import { ApplicationService } from 'src/engine/core-modules/application/services/application.service';
 import {
   AuthException,
   AuthExceptionCode,
@@ -31,6 +30,7 @@ import { SubdomainManagerService } from 'src/engine/core-modules/domain/subdomai
 import { MetricsService } from 'src/engine/core-modules/metrics/metrics.service';
 import { MetricsKeys } from 'src/engine/core-modules/metrics/types/metrics-keys.type';
 import { OnboardingService } from 'src/engine/core-modules/onboarding/onboarding.service';
+import { SecureHttpClientService } from 'src/engine/core-modules/tool/services/secure-http-client.service';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 import { UserWorkspaceService } from 'src/engine/core-modules/user-workspace/user-workspace.service';
 import { UserService } from 'src/engine/core-modules/user/services/user.service';
@@ -38,13 +38,13 @@ import { UserEntity } from 'src/engine/core-modules/user/user.entity';
 import { WorkspaceInvitationService } from 'src/engine/core-modules/workspace-invitation/services/workspace-invitation.service';
 import { AuthProviderEnum } from 'src/engine/core-modules/workspace/types/workspace.type';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
+import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
 import { WorkspaceEventEmitter } from 'src/engine/workspace-event-emitter/workspace-event-emitter';
-import { computeWorkspaceCustomCreateApplicationInput } from 'src/engine/workspace-manager/workspace-sync-metadata/utils/compute-workspace-custom-create-application-input';
 import { getDomainNameByEmail } from 'src/utils/get-domain-name-by-email';
 import { isWorkEmail } from 'src/utils/is-work-email';
 
 @Injectable()
-// eslint-disable-next-line @nx/workspace-inject-workspace-repository
+// eslint-disable-next-line twenty/inject-workspace-repository
 export class SignInUpService {
   constructor(
     @InjectRepository(UserEntity)
@@ -55,11 +55,12 @@ export class SignInUpService {
     private readonly userWorkspaceService: UserWorkspaceService,
     private readonly onboardingService: OnboardingService,
     private readonly workspaceEventEmitter: WorkspaceEventEmitter,
-    private readonly httpService: HttpService,
+    private readonly secureHttpClientService: SecureHttpClientService,
     private readonly twentyConfigService: TwentyConfigService,
     private readonly subdomainManagerService: SubdomainManagerService,
     private readonly userService: UserService,
     private readonly metricsService: MetricsService,
+    private readonly workspaceCacheService: WorkspaceCacheService,
     private readonly applicationService: ApplicationService,
     @InjectDataSource()
     private readonly dataSource: DataSource,
@@ -271,6 +272,7 @@ export class SignInUpService {
       await this.activateOnboardingForUser({
         user,
         workspace: params.workspace,
+        shouldShowConnectAccountStep: false,
       });
 
       await this.userWorkspaceService.addUserToWorkspaceIfUserNotInWorkspace(
@@ -300,20 +302,24 @@ export class SignInUpService {
     {
       user,
       workspace,
+      shouldShowConnectAccountStep,
     }: {
       user: UserEntity;
       workspace: WorkspaceEntity;
+      shouldShowConnectAccountStep: boolean;
     },
     queryRunner?: QueryRunner,
   ) {
-    await this.onboardingService.setOnboardingConnectAccountPending(
-      {
-        userId: user.id,
-        workspaceId: workspace.id,
-        value: true,
-      },
-      queryRunner,
-    );
+    if (shouldShowConnectAccountStep) {
+      await this.onboardingService.setOnboardingConnectAccountPending(
+        {
+          userId: user.id,
+          workspaceId: workspace.id,
+          value: true,
+        },
+        queryRunner,
+      );
+    }
 
     if (user.firstName === '' && user.lastName === '') {
       await this.onboardingService.setOnboardingCreateProfilePending(
@@ -397,8 +403,8 @@ export class SignInUpService {
     );
   }
 
-  private async isFirstWorkspaceForUser(userId: string): Promise<boolean> {
-    const count = await this.userWorkspaceService.countUserWorkspaces(userId);
+  private async isFirstWorkspaceInSystem(): Promise<boolean> {
+    const count = await this.workspaceRepository.count();
 
     return count === 0;
   }
@@ -408,7 +414,8 @@ export class SignInUpService {
   ): Promise<void> {
     if (!this.isWorkspaceCreationLimitedToServerAdmins()) return;
 
-    if (await this.isFirstWorkspaceForUser(currentUser.id)) return;
+    // Only allow bypass during initial system bootstrap (no workspaces exist yet)
+    if (await this.isFirstWorkspaceInSystem()) return;
 
     if (!currentUser.canAccessFullAdminPanel) {
       throw new AuthException(
@@ -439,16 +446,35 @@ export class SignInUpService {
       );
     }
 
+    if (
+      this.isWorkspaceCreationLimitedToServerAdmins() &&
+      !(await this.isFirstWorkspaceInSystem())
+    ) {
+      const isExistingAdmin =
+        userData.type === 'existingUser' &&
+        userData.existingUser.canAccessFullAdminPanel;
+
+      if (!isExistingAdmin) {
+        throw new AuthException(
+          'Workspace creation is restricted to admins',
+          AuthExceptionCode.FORBIDDEN_EXCEPTION,
+          {
+            userFriendlyMessage: msg`Workspace creation is restricted to admins`,
+          },
+        );
+      }
+    }
+
     const { canImpersonate, canAccessFullAdminPanel } =
       await this.setDefaultImpersonateAndAccessFullAdminPanel();
 
     const logoUrl = `${TWENTY_ICONS_BASE_URL}/${getDomainNameByEmail(email)}`;
     const isLogoUrlValid = async () => {
       try {
-        return (
-          (await this.httpService.axiosRef.get(logoUrl, { timeout: 600 }))
-            .status === 200
-        );
+        const httpClient = this.secureHttpClientService.getHttpClient();
+        const response = await httpClient.get(logoUrl, { timeout: 600 });
+
+        return response.status === 200;
       } catch {
         return false;
       }
@@ -459,33 +485,19 @@ export class SignInUpService {
       isWorkEmailFound && (await isLogoUrlValid()) ? logoUrl : undefined;
 
     const workspaceId = v4();
-    const workspaceCustomApplicationCreateInput =
-      computeWorkspaceCustomCreateApplicationInput({
-        workspace: {
-          id: workspaceId,
-        },
-      });
-
+    const workspaceCustomApplicationId = v4();
     const queryRunner = this.dataSource.createQueryRunner();
 
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      const workspaceCustomApplication = await this.applicationService.create(
-        {
-          ...workspaceCustomApplicationCreateInput,
-          serverlessFunctionLayerId: null,
-        },
-        queryRunner,
-      );
-
       const workspaceToCreate = this.workspaceRepository.create({
         id: workspaceId,
         subdomain: await this.subdomainManagerService.generateSubdomain(
           isWorkEmailFound ? { userEmail: email } : {},
         ),
-        workspaceCustomApplicationId: workspaceCustomApplication.id,
+        workspaceCustomApplicationId,
         displayName: '',
         inviteHash: v4(),
         activationStatus: WorkspaceActivationStatus.PENDING_CREATION,
@@ -495,6 +507,14 @@ export class SignInUpService {
       const workspace = await queryRunner.manager.save(
         WorkspaceEntity,
         workspaceToCreate,
+      );
+
+      await this.applicationService.createWorkspaceCustomApplication(
+        {
+          workspaceId,
+          applicationId: workspaceCustomApplicationId,
+        },
+        queryRunner,
       );
 
       const isExistingUser = userData.type === 'existingUser';
@@ -521,7 +541,10 @@ export class SignInUpService {
         queryRunner,
       );
 
-      await this.activateOnboardingForUser({ user, workspace }, queryRunner);
+      await this.activateOnboardingForUser(
+        { user, workspace, shouldShowConnectAccountStep: true },
+        queryRunner,
+      );
 
       await this.onboardingService.setOnboardingInviteTeamPending(
         {
@@ -532,6 +555,9 @@ export class SignInUpService {
       );
 
       await queryRunner.commitTransaction();
+      await this.workspaceCacheService.invalidateAndRecompute(workspaceId, [
+        'flatApplicationMaps',
+      ]);
 
       return { user, workspace };
     } catch (error) {
