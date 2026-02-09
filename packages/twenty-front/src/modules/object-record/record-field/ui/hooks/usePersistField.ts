@@ -45,6 +45,10 @@ import { isFieldBoolean } from '../types/guards/isFieldBoolean';
 import { isFieldBooleanValue } from '../types/guards/isFieldBooleanValue';
 import { isFieldCurrency } from '../types/guards/isFieldCurrency';
 import { isFieldCurrencyValue } from '../types/guards/isFieldCurrencyValue';
+import { isFieldImage } from '../types/guards/isFieldImage';
+import { isFieldImageValue } from '../types/guards/isFieldImageValue';
+import { isFieldPdf } from '../types/guards/isFieldPdf';
+import { isFieldPdfValue } from '../types/guards/isFieldPdfValue';
 import { isFieldDateTime } from '../types/guards/isFieldDateTime';
 import { isFieldDateTimeValue } from '../types/guards/isFieldDateTimeValue';
 import { isFieldNumber } from '../types/guards/isFieldNumber';
@@ -153,6 +157,12 @@ export const usePersistField = ({
         const fieldIsArray =
           isFieldArray(fieldDefinition) && isFieldArrayValue(valueToPersist);
 
+        const fieldIsImage =
+          isFieldImage(fieldDefinition) && isFieldImageValue(valueToPersist);
+
+        const fieldIsPdf =
+          isFieldPdf(fieldDefinition) && isFieldPdfValue(valueToPersist);
+
         const fieldIsUIReadOnly =
           fieldDefinition.metadata.isUIReadOnly ?? false;
 
@@ -180,7 +190,9 @@ export const usePersistField = ({
           fieldIsRawJson ||
           fieldIsArray ||
           fieldIsRichText ||
-          fieldIsRichTextV2;
+          fieldIsRichTextV2 ||
+          fieldIsImage ||
+          fieldIsPdf;
 
         if (isValuePersistable) {
           const fieldName = fieldDefinition.metadata.fieldName;

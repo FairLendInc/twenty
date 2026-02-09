@@ -54,7 +54,10 @@ export const useUploadAttachmentFile = () => {
 
     const createdAttachment = await createOneAttachment(attachmentToCreate);
 
-    return { attachmentAbsoluteURL: createdAttachment.fullPath };
+    return {
+      attachmentId: createdAttachment.id,
+      attachmentAbsoluteURL: createdAttachment.fullPath,
+    };
   };
 
   return { uploadAttachmentFile };
