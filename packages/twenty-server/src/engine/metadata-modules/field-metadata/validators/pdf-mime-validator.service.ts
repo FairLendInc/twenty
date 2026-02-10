@@ -7,7 +7,7 @@ export class PdfMimeValidatorService {
   private readonly PDF_MIME_TYPES = ['application/pdf'];
 
   validate(mimeType: string): void {
-    if (!this.PDF_MIME_TYPES.includes(mimeType)) {
+    if (!this.isValid(mimeType)) {
       throw new ValidationError(
         'Only PDF files are allowed for this field. Please upload a file with MIME type: application/pdf',
       );
@@ -15,7 +15,9 @@ export class PdfMimeValidatorService {
   }
 
   isValid(mimeType: string): boolean {
-    return this.PDF_MIME_TYPES.includes(mimeType);
+    const normalizedMimeType = mimeType.split(';')[0]?.trim().toLowerCase();
+
+    return this.PDF_MIME_TYPES.includes(normalizedMimeType);
   }
 
   getSupportedMimeTypes(): string[] {

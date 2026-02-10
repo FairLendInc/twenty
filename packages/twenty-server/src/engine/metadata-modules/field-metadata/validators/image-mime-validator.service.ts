@@ -21,7 +21,9 @@ export class ImageMimeValidatorService {
   }
 
   isValid(mimeType: string): boolean {
-    return this.IMAGE_MIME_TYPES.some((type) => mimeType.startsWith(type));
+    const normalizedMimeType = mimeType.split(';')[0]?.trim().toLowerCase();
+
+    return this.IMAGE_MIME_TYPES.includes(normalizedMimeType);
   }
 
   getSupportedMimeTypes(): string[] {

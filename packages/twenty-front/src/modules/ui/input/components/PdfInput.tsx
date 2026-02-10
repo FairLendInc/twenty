@@ -109,6 +109,8 @@ export const PdfInput = ({
     <StyledContainer className={className}>
       <StyledIconBox
         hasFile={hasFile}
+        type="button"
+        aria-label={t`Upload PDF`}
         disabled={disabled}
         onClick={onUploadButtonClick}
       >
@@ -132,7 +134,7 @@ export const PdfInput = ({
               onClick={onAbort}
               variant="secondary"
               title={t`Abort`}
-              disabled={!hasFile || disabled}
+              disabled={disabled}
             />
           ) : (
             <Button

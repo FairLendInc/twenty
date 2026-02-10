@@ -23,7 +23,11 @@ export class AttachmentLimitValidatorService {
   }
 
   isValid(attachmentIds: string[]): boolean {
-    if (!attachmentIds || !Array.isArray(attachmentIds)) {
+    if (!attachmentIds) {
+      return true;
+    }
+
+    if (!Array.isArray(attachmentIds)) {
       return false;
     }
 

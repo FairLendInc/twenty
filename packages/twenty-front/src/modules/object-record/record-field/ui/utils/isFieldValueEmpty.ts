@@ -192,18 +192,22 @@ export const isFieldValueEmpty = ({
   if (isFieldImage(fieldDefinition)) {
     return (
       !isFieldImageValue(fieldValue) ||
-      isValueEmpty(fieldValue.primaryAttachmentId)
+      (isValueEmpty(fieldValue.primaryAttachmentId) &&
+        (!Array.isArray(fieldValue.additionalAttachmentIds) ||
+          fieldValue.additionalAttachmentIds.length === 0))
     );
   }
 
   if (isFieldPdf(fieldDefinition)) {
     return (
       !isFieldPdfValue(fieldValue) ||
-      isValueEmpty(fieldValue.primaryAttachmentId)
+      (isValueEmpty(fieldValue.primaryAttachmentId) &&
+        (!Array.isArray(fieldValue.additionalAttachmentIds) ||
+          fieldValue.additionalAttachmentIds.length === 0))
     );
   }
 
   throw new Error(
-    `Entity field type not supported in isFieldValueEmpty : ${fieldDefinition.type}}`,
+    `Entity field type not supported in isFieldValueEmpty : ${fieldDefinition.type}`,
   );
 };

@@ -22,8 +22,6 @@ const SUPPORTED_FORM_FIELD_TYPES = [
   FieldMetadataType.ARRAY,
   FieldMetadataType.RELATION,
   FieldMetadataType.RICH_TEXT_V2,
-  FieldMetadataType.IMAGE,
-  FieldMetadataType.PDF,
 ];
 
 export const shouldDisplayFormField = ({

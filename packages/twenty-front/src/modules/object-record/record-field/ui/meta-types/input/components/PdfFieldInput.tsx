@@ -35,12 +35,20 @@ export const PdfFieldInput = () => {
     setErrorMessage(null);
 
     try {
+      const targetObjectNameSingular =
+        fieldDefinition.metadata.objectMetadataNameSingular;
+
+      if (!targetObjectNameSingular) {
+        throw new Error(
+          'Missing object metadata name for attachment upload target',
+        );
+      }
+
       const { attachmentId: newAttachmentId } = await uploadAttachmentFile(
         file,
         {
           id: recordId,
-          targetObjectNameSingular:
-            fieldDefinition.metadata.objectMetadataNameSingular ?? '',
+          targetObjectNameSingular,
         },
       );
 

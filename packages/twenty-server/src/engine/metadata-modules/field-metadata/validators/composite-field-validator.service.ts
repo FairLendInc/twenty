@@ -1,29 +1,44 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { In } from 'typeorm';
+import { FILE_CATEGORIES } from 'twenty-shared/types';
 
 import { ValidationError } from 'src/engine/core-modules/graphql/utils/graphql-errors.util';
 import { AttachmentLimitValidatorService } from 'src/engine/metadata-modules/field-metadata/validators/attachment-limit-validator.service';
 import { ImageMimeValidatorService } from 'src/engine/metadata-modules/field-metadata/validators/image-mime-validator.service';
 import { PdfMimeValidatorService } from 'src/engine/metadata-modules/field-metadata/validators/pdf-mime-validator.service';
 import { TwentyORMManager } from 'src/engine/twenty-orm/twenty-orm.manager';
-import { AttachmentWorkspaceEntity } from 'src/modules/attachment/standard-objects/attachment.workspace-entity';
+import { type AttachmentWorkspaceEntity } from 'src/modules/attachment/standard-objects/attachment.workspace-entity';
 
 @Injectable()
 export class CompositeFieldValidatorService {
+  private readonly IMAGE_MIME_TYPES_BY_EXTENSION: Record<string, string> = {
+    jpeg: 'image/jpeg',
+    jpg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+  };
+
+  private readonly PDF_MIME_TYPES_BY_EXTENSION: Record<string, string> = {
+    pdf: 'application/pdf',
+  };
+
   constructor(
+    @Inject(ImageMimeValidatorService)
     private readonly imageMimeValidator: ImageMimeValidatorService,
+    @Inject(PdfMimeValidatorService)
     private readonly pdfMimeValidator: PdfMimeValidatorService,
+    @Inject(AttachmentLimitValidatorService)
     private readonly attachmentLimitValidator: AttachmentLimitValidatorService,
+    @Inject(TwentyORMManager)
     private readonly twentyORMManager: TwentyORMManager,
   ) {}
 
   async validateImageField(
     attachmentIds: string[] | null | undefined,
-    recordId: string,
-    workspaceId: string,
     isRequired: boolean,
   ): Promise<void> {
-    // Handle null/empty
     if (!attachmentIds || attachmentIds.length === 0) {
       if (isRequired) {
         throw new ValidationError(
@@ -34,20 +49,10 @@ export class CompositeFieldValidatorService {
       return;
     }
 
-    // Validate count
     this.attachmentLimitValidator.validate(attachmentIds);
 
-    // Fetch attachments
-    const attachmentRepository =
-      await this.twentyORMManager.getRepository<AttachmentWorkspaceEntity>(
-        'attachment',
-      );
+    const attachments = await this.findAttachmentsByIds(attachmentIds);
 
-    const attachments = await attachmentRepository.findBy({
-      id: In(attachmentIds),
-    });
-
-    // Validate all IDs exist
     if (attachments.length !== attachmentIds.length) {
       const foundIds = new Set(attachments.map((att) => att.id));
       const missingIds = attachmentIds.filter((id) => !foundIds.has(id));
@@ -57,14 +62,8 @@ export class CompositeFieldValidatorService {
       );
     }
 
-    // Validate file types
     attachments.forEach((attachment) => {
-      // Check if it's an image based on type or file extension
-      const isImage =
-        attachment.type === 'Image' ||
-        attachment.name.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
-
-      if (!isImage) {
+      if (!this.isValidImageAttachment(attachment)) {
         throw new ValidationError(
           `Attachment "${attachment.name}" is not an image file. Only image files are allowed for image fields.`,
         );
@@ -74,11 +73,8 @@ export class CompositeFieldValidatorService {
 
   async validatePdfField(
     attachmentIds: string[] | null | undefined,
-    recordId: string,
-    workspaceId: string,
     isRequired: boolean,
   ): Promise<void> {
-    // Handle null/empty
     if (!attachmentIds || attachmentIds.length === 0) {
       if (isRequired) {
         throw new ValidationError(
@@ -89,20 +85,10 @@ export class CompositeFieldValidatorService {
       return;
     }
 
-    // Validate count
     this.attachmentLimitValidator.validate(attachmentIds);
 
-    // Fetch attachments
-    const attachmentRepository =
-      await this.twentyORMManager.getRepository<AttachmentWorkspaceEntity>(
-        'attachment',
-      );
+    const attachments = await this.findAttachmentsByIds(attachmentIds);
 
-    const attachments = await attachmentRepository.findBy({
-      id: In(attachmentIds),
-    });
-
-    // Validate all IDs exist
     if (attachments.length !== attachmentIds.length) {
       const foundIds = new Set(attachments.map((att) => att.id));
       const missingIds = attachmentIds.filter((id) => !foundIds.has(id));
@@ -112,14 +98,8 @@ export class CompositeFieldValidatorService {
       );
     }
 
-    // Validate file types
     attachments.forEach((attachment) => {
-      // Check if it's a PDF based on type or file extension
-      const isPdf =
-        attachment.type === 'TextDocument' || // PDFs often classified as TextDocument
-        attachment.name.toLowerCase().endsWith('.pdf');
-
-      if (!isPdf) {
+      if (!this.isValidPdfAttachment(attachment)) {
         throw new ValidationError(
           `Attachment "${attachment.name}" is not a PDF file. Only PDF files are allowed for PDF fields.`,
         );
@@ -127,25 +107,68 @@ export class CompositeFieldValidatorService {
     });
   }
 
-  /**
-   * Optional: Validate attachments belong to the record
-   * Uncomment if strict ownership is required
-   */
-  // private validateAttachmentOwnership(
-  //   attachments: AttachmentWorkspaceEntity[],
-  //   recordId: string,
-  // ): void {
-  //   const invalidAttachments = attachments.filter((att) => {
-  //     // Check if attachment is linked to the record via any relation field
-  //     // This requires knowing the object type and checking the appropriate foreign key
-  //     // For now, this is left as a placeholder for future enhancement
-  //     return false;
-  //   });
-  //
-  //   if (invalidAttachments.length > 0) {
-  //     throw new ValidationError(
-  //       `Some attachments do not belong to this record: ${invalidAttachments.map((a) => a.name).join(', ')}`,
-  //     );
-  //   }
-  // }
+  private async findAttachmentsByIds(
+    attachmentIds: string[],
+  ): Promise<AttachmentWorkspaceEntity[]> {
+    const attachmentRepository =
+      await this.twentyORMManager.getRepository<AttachmentWorkspaceEntity>(
+        'attachment',
+      );
+
+    return attachmentRepository.findBy({
+      id: In(attachmentIds),
+    });
+  }
+
+  private isValidImageAttachment(attachment: AttachmentWorkspaceEntity): boolean {
+    const fileCategory = attachment.fileCategory?.toUpperCase();
+
+    if (fileCategory !== FILE_CATEGORIES.IMAGE) {
+      return false;
+    }
+
+    const normalizedExtension = this.getNormalizedExtension(attachment);
+
+    if (!normalizedExtension) {
+      return false;
+    }
+
+    const mimeType = this.IMAGE_MIME_TYPES_BY_EXTENSION[normalizedExtension];
+
+    return mimeType ? this.imageMimeValidator.isValid(mimeType) : false;
+  }
+
+  private isValidPdfAttachment(attachment: AttachmentWorkspaceEntity): boolean {
+    const fileCategory = attachment.fileCategory?.toUpperCase();
+
+    if (fileCategory !== FILE_CATEGORIES.TEXT_DOCUMENT) {
+      return false;
+    }
+
+    const normalizedExtension = this.getNormalizedExtension(attachment);
+
+    if (!normalizedExtension) {
+      return false;
+    }
+
+    const mimeType = this.PDF_MIME_TYPES_BY_EXTENSION[normalizedExtension];
+
+    return mimeType ? this.pdfMimeValidator.isValid(mimeType) : false;
+  }
+
+  private getNormalizedExtension(
+    attachment: AttachmentWorkspaceEntity,
+  ): string | null {
+    const extensionFromFile = attachment.file?.[0]?.extension;
+    const extensionFromName =
+      attachment.name?.split('.').pop()?.trim().toLowerCase() ?? null;
+
+    const rawExtension = extensionFromFile || extensionFromName;
+
+    if (!rawExtension) {
+      return null;
+    }
+
+    return rawExtension.replace('.', '').trim().toLowerCase();
+  }
 }

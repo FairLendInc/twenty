@@ -1,4 +1,3 @@
-//TODO:
 import styled from '@emotion/styled';
 
 // eslint-disable-next-line twenty/styled-components-prefixed-with-styled
