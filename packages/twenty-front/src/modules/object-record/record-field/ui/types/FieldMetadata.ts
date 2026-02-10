@@ -203,6 +203,14 @@ export type FieldFilesMetadata = BaseFieldMetadata & {
   settings?: FieldMetadataMultiItemSettings | null;
 };
 
+export type FieldImageMetadata = BaseFieldMetadata & {
+  settings?: null;
+};
+
+export type FieldPdfMetadata = BaseFieldMetadata & {
+  settings?: null;
+};
+
 export type FieldMetadata =
   | FieldBooleanMetadata
   | FieldCurrencyMetadata
@@ -229,6 +237,8 @@ export type FieldMetadata =
   | FieldArrayMetadata
   | FieldTsVectorMetadata
   | FieldRawJsonMetadata
+  | FieldImageMetadata
+  | FieldPdfMetadata
   | FieldRichTextV2Metadata
   | FieldRichTextMetadata;
 
@@ -342,4 +352,14 @@ export type FieldFilesValue = {
   extension?: string;
   url?: string;
   fileCategory?: FileCategory;
+};
+
+export type FieldImageValue = {
+  primaryAttachmentId: string | null;
+  additionalAttachmentIds: string[] | null;
+};
+
+export type FieldPdfValue = {
+  primaryAttachmentId: string | null;
+  additionalAttachmentIds: string[] | null;
 };

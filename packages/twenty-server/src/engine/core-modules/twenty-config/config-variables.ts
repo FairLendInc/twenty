@@ -1407,6 +1407,14 @@ export class ConfigVariables {
   IS_ATTACHMENT_PREVIEW_ENABLED = true;
 
   @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.OTHER,
+    description: 'Enable or disable attachments as fields feature',
+    type: ConfigVariableType.BOOLEAN,
+  })
+  @IsOptional()
+  IS_ATTACHMENTS_AS_FIELDS_ENABLED = false;
+
+  @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.SERVER_CONFIG,
     description: 'Twenty server version',
     type: ConfigVariableType.STRING,

@@ -94,6 +94,14 @@ export type FieldMetadataDefaultValueMapping = {
   [FieldMetadataType.RICH_TEXT_V2]: FieldMetadataDefaultValueRichTextV2 | null;
   [FieldMetadataType.ACTOR]: FieldMetadataDefaultActor | null;
   [FieldMetadataType.ARRAY]: string[] | null;
+  [FieldMetadataType.IMAGE]: {
+    primaryAttachmentId: string | null;
+    additionalAttachmentIds: string[] | null;
+  } | null;
+  [FieldMetadataType.PDF]: {
+    primaryAttachmentId: string | null;
+    additionalAttachmentIds: string[] | null;
+  } | null;
 };
 
 export type FieldMetadataFunctionDefaultValue =

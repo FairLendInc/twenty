@@ -235,6 +235,7 @@ describe('WorkspaceEntityManager', () => {
         IS_TASK_TARGET_MIGRATED: false,
         IS_TIMELINE_ACTIVITY_MIGRATED: false,
         IS_GLOBAL_WORKSPACE_DATASOURCE_ENABLED: false,
+        IS_ATTACHMENTS_AS_FIELDS_ENABLED: false,
         IS_ROW_LEVEL_PERMISSION_PREDICATES_ENABLED: false,
         IS_JUNCTION_RELATIONS_ENABLED: false,
         IS_SSE_DB_EVENTS_ENABLED: false,

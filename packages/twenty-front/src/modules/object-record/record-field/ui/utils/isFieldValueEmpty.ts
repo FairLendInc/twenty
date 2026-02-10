@@ -38,6 +38,10 @@ import { isFieldRichTextV2Value } from '@/object-record/record-field/ui/types/gu
 import { isFieldSelect } from '@/object-record/record-field/ui/types/guards/isFieldSelect';
 import { isFieldSelectValue } from '@/object-record/record-field/ui/types/guards/isFieldSelectValue';
 import { isFieldText } from '@/object-record/record-field/ui/types/guards/isFieldText';
+import { isFieldImage } from '@/object-record/record-field/ui/types/guards/isFieldImage';
+import { isFieldImageValue } from '@/object-record/record-field/ui/types/guards/isFieldImageValue';
+import { isFieldPdf } from '@/object-record/record-field/ui/types/guards/isFieldPdf';
+import { isFieldPdfValue } from '@/object-record/record-field/ui/types/guards/isFieldPdfValue';
 import { isFieldTsVector } from '@/object-record/record-field/ui/types/guards/isFieldTsVectorValue';
 import { isFieldUuid } from '@/object-record/record-field/ui/types/guards/isFieldUuid';
 import { isDefined } from 'twenty-shared/utils';
@@ -185,7 +189,25 @@ export const isFieldValueEmpty = ({
     );
   }
 
+  if (isFieldImage(fieldDefinition)) {
+    return (
+      !isFieldImageValue(fieldValue) ||
+      (isValueEmpty(fieldValue.primaryAttachmentId) &&
+        (!Array.isArray(fieldValue.additionalAttachmentIds) ||
+          fieldValue.additionalAttachmentIds.length === 0))
+    );
+  }
+
+  if (isFieldPdf(fieldDefinition)) {
+    return (
+      !isFieldPdfValue(fieldValue) ||
+      (isValueEmpty(fieldValue.primaryAttachmentId) &&
+        (!Array.isArray(fieldValue.additionalAttachmentIds) ||
+          fieldValue.additionalAttachmentIds.length === 0))
+    );
+  }
+
   throw new Error(
-    `Entity field type not supported in isFieldValueEmpty : ${fieldDefinition.type}}`,
+    `Entity field type not supported in isFieldValueEmpty : ${fieldDefinition.type}`,
   );
 };

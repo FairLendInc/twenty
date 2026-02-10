@@ -4,7 +4,9 @@ import {
   type FieldCurrencyValue,
   type FieldEmailsValue,
   type FieldFullNameValue,
+  type FieldImageValue,
   type FieldLinksValue,
+  type FieldPdfValue,
   type FieldPhonesValue,
   type FieldRichTextV2Value,
 } from '@/object-record/record-field/ui/types/FieldMetadata';
@@ -542,4 +544,72 @@ export const SETTINGS_COMPOSITE_FIELD_TYPE_CONFIGS = {
       },
     ],
   } as const satisfies SettingsCompositeFieldTypeConfig<FieldRichTextV2Value>,
+  [FieldMetadataType.IMAGE]: {
+    label: 'Image',
+    Icon: IllustrationIconSetting,
+    category: 'Basic',
+    subFields: [
+      {
+        subFieldName:
+          COMPOSITE_FIELD_TYPE_SUB_FIELDS_NAMES[FieldMetadataType.IMAGE]
+            .primaryAttachmentId,
+        subFieldLabel:
+          COMPOSITE_FIELD_SUB_FIELD_LABELS[FieldMetadataType.IMAGE]
+            .primaryAttachmentId,
+        isImportable: false,
+        isFilterable: true,
+        isIncludedInUniqueConstraint: false,
+      },
+      {
+        subFieldName:
+          COMPOSITE_FIELD_TYPE_SUB_FIELDS_NAMES[FieldMetadataType.IMAGE]
+            .additionalAttachmentIds,
+        subFieldLabel:
+          COMPOSITE_FIELD_SUB_FIELD_LABELS[FieldMetadataType.IMAGE]
+            .additionalAttachmentIds,
+        isImportable: false,
+        isFilterable: false,
+        isIncludedInUniqueConstraint: false,
+      },
+    ],
+    exampleValues: [
+      { primaryAttachmentId: null, additionalAttachmentIds: null },
+      { primaryAttachmentId: null, additionalAttachmentIds: null },
+      { primaryAttachmentId: null, additionalAttachmentIds: null },
+    ],
+  } as const satisfies SettingsCompositeFieldTypeConfig<FieldImageValue>,
+  [FieldMetadataType.PDF]: {
+    label: 'PDF',
+    Icon: IllustrationIconSetting,
+    category: 'Basic',
+    subFields: [
+      {
+        subFieldName:
+          COMPOSITE_FIELD_TYPE_SUB_FIELDS_NAMES[FieldMetadataType.PDF]
+            .primaryAttachmentId,
+        subFieldLabel:
+          COMPOSITE_FIELD_SUB_FIELD_LABELS[FieldMetadataType.PDF]
+            .primaryAttachmentId,
+        isImportable: false,
+        isFilterable: true,
+        isIncludedInUniqueConstraint: false,
+      },
+      {
+        subFieldName:
+          COMPOSITE_FIELD_TYPE_SUB_FIELDS_NAMES[FieldMetadataType.PDF]
+            .additionalAttachmentIds,
+        subFieldLabel:
+          COMPOSITE_FIELD_SUB_FIELD_LABELS[FieldMetadataType.PDF]
+            .additionalAttachmentIds,
+        isImportable: false,
+        isFilterable: false,
+        isIncludedInUniqueConstraint: false,
+      },
+    ],
+    exampleValues: [
+      { primaryAttachmentId: null, additionalAttachmentIds: null },
+      { primaryAttachmentId: null, additionalAttachmentIds: null },
+      { primaryAttachmentId: null, additionalAttachmentIds: null },
+    ],
+  } as const satisfies SettingsCompositeFieldTypeConfig<FieldPdfValue>,
 } as const satisfies SettingsCompositeFieldTypeConfigArray;

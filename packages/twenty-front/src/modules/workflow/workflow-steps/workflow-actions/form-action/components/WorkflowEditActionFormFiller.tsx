@@ -1,6 +1,6 @@
 import { CmdEnterActionButton } from '@/action-menu/components/CmdEnterActionButton';
 import { useCommandMenuHistory } from '@/command-menu/hooks/useCommandMenuHistory';
-import { FormFieldInput } from '@/object-record/record-field/ui/components/FormFieldInput';
+import { FormFieldInput } from '@/object-record/record-field/ui/form-types/components/FormFieldInput';
 import { FormSingleRecordPicker } from '@/object-record/record-field/ui/form-types/components/FormSingleRecordPicker';
 import { type FieldMetadata } from '@/object-record/record-field/ui/types/FieldMetadata';
 import { RightDrawerFooter } from '@/ui/layout/right-drawer/components/RightDrawerFooter';

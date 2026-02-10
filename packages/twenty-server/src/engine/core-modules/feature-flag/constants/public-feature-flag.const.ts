@@ -13,6 +13,14 @@ export type PublicFeatureFlag = {
 
 export const PUBLIC_FEATURE_FLAGS: PublicFeatureFlag[] = [
   {
+    key: FeatureFlagKey.IS_ATTACHMENTS_AS_FIELDS_ENABLED,
+    metadata: {
+      label: 'Attachments as Fields',
+      description:
+        'Enable attachments to be displayed as fields in the record view',
+    },
+  },
+  {
     key: FeatureFlagKey.IS_JUNCTION_RELATIONS_ENABLED,
     metadata: {
       label: 'Junction Relations',

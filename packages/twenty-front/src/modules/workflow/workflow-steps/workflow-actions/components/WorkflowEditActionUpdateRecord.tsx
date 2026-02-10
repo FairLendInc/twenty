@@ -1,7 +1,7 @@
 import { t } from '@lingui/core/macro';
 import { useFilteredObjectMetadataItems } from '@/object-metadata/hooks/useFilteredObjectMetadataItems';
 import { formatFieldMetadataItemAsFieldDefinition } from '@/object-metadata/utils/formatFieldMetadataItemAsFieldDefinition';
-import { FormFieldInput } from '@/object-record/record-field/ui/components/FormFieldInput';
+import { FormFieldInput } from '@/object-record/record-field/ui/form-types/components/FormFieldInput';
 import { FormSingleRecordPicker } from '@/object-record/record-field/ui/form-types/components/FormSingleRecordPicker';
 import { isFieldRelation } from '@/object-record/record-field/ui/types/guards/isFieldRelation';
 import { Select } from '@/ui/input/components/Select';

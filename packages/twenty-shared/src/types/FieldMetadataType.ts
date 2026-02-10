@@ -25,4 +25,6 @@ export enum FieldMetadataType {
   TEXT = 'TEXT',
   TS_VECTOR = 'TS_VECTOR',
   UUID = 'UUID',
+  IMAGE = 'IMAGE',
+  PDF = 'PDF',
 }

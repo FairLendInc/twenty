@@ -92,6 +92,8 @@ export const useBuildSpreadsheetImportFields = () => {
       case FieldMetadataType.ACTOR:
       case FieldMetadataType.TS_VECTOR:
       case FieldMetadataType.RICH_TEXT:
+      case FieldMetadataType.IMAGE:
+      case FieldMetadataType.PDF:
         return [];
 
       default:

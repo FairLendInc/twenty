@@ -1,6 +1,6 @@
 import { useFieldMetadataItemById } from '@/object-metadata/hooks/useFieldMetadataItemById';
 import { formatFieldMetadataItemAsFieldDefinition } from '@/object-metadata/utils/formatFieldMetadataItemAsFieldDefinition';
-import { FormFieldInput } from '@/object-record/record-field/ui/components/FormFieldInput';
+import { FormFieldInput } from '@/object-record/record-field/ui/form-types/components/FormFieldInput';
 import { type VariablePickerComponent } from '@/object-record/record-field/ui/form-types/types/VariablePickerComponent';
 import { isDefined } from 'twenty-shared/utils';
 import { type JsonValue } from 'type-fest';

@@ -359,6 +359,8 @@ export const buildRecordFromImportedStructuredRow = ({
       case FieldMetadataType.POSITION:
       case FieldMetadataType.RICH_TEXT:
       case FieldMetadataType.TS_VECTOR:
+      case FieldMetadataType.IMAGE:
+      case FieldMetadataType.PDF:
         break;
       default:
         assertUnreachable(field.type);

@@ -434,6 +434,89 @@ export const isRecordMatchingFilter = ({
           value: record[filterKey],
         });
       }
+      case FieldMetadataType.IMAGE:
+      case FieldMetadataType.PDF: {
+        if (!isObject(filterValue)) {
+          return false;
+        }
+
+        const attachmentValue = isObject(record[filterKey])
+          ? (record[filterKey] as {
+              primaryAttachmentId?: string | null;
+              additionalAttachmentIds?: string[] | null;
+            })
+          : null;
+
+        const primaryAttachmentId = attachmentValue?.primaryAttachmentId ?? null;
+        const additionalAttachmentIds = Array.isArray(
+          attachmentValue?.additionalAttachmentIds,
+        )
+          ? attachmentValue.additionalAttachmentIds
+          : null;
+
+        const imageOrPdfFilter = filterValue as {
+          primaryAttachmentId?: UUIDFilter;
+          additionalAttachmentIds?: ArrayFilter | RawJsonFilter;
+          eq?: string;
+          in?: string[];
+          neq?: string;
+          is?: 'NULL' | 'NOT_NULL';
+        };
+
+        const hasCompositeSubfieldFilter =
+          imageOrPdfFilter.primaryAttachmentId !== undefined ||
+          imageOrPdfFilter.additionalAttachmentIds !== undefined;
+
+        if (hasCompositeSubfieldFilter) {
+          const isPrimaryAttachmentIdMatching =
+            imageOrPdfFilter.primaryAttachmentId === undefined ||
+            isMatchingUUIDFilter({
+              uuidFilter: imageOrPdfFilter.primaryAttachmentId,
+              value: primaryAttachmentId as unknown as string,
+            });
+
+          const isAdditionalAttachmentIdsMatching =
+            imageOrPdfFilter.additionalAttachmentIds === undefined ||
+            ('containsIlike' in imageOrPdfFilter.additionalAttachmentIds ||
+            'isEmptyArray' in imageOrPdfFilter.additionalAttachmentIds
+              ? isMatchingArrayFilter({
+                  arrayFilter: imageOrPdfFilter.additionalAttachmentIds,
+                  value: additionalAttachmentIds,
+                })
+              : isMatchingRawJsonFilter({
+                  rawJsonFilter: imageOrPdfFilter.additionalAttachmentIds,
+                  value: additionalAttachmentIds as unknown as string,
+                }));
+
+          return (
+            isPrimaryAttachmentIdMatching && isAdditionalAttachmentIdsMatching
+          );
+        }
+
+        if (
+          imageOrPdfFilter.eq !== undefined ||
+          imageOrPdfFilter.neq !== undefined ||
+          imageOrPdfFilter.in !== undefined
+        ) {
+          return isMatchingUUIDFilter({
+            uuidFilter: imageOrPdfFilter,
+            value: primaryAttachmentId as unknown as string,
+          });
+        }
+
+        if (imageOrPdfFilter.is !== undefined) {
+          const hasAnyAttachment =
+            primaryAttachmentId !== null ||
+            (Array.isArray(additionalAttachmentIds) &&
+              additionalAttachmentIds.length > 0);
+
+          return imageOrPdfFilter.is === 'NULL'
+            ? !hasAnyAttachment
+            : hasAnyAttachment;
+        }
+
+        return false;
+      }
       default: {
         throw new Error(
           `Not implemented yet for field type "${objectMetadataField.type}"`,

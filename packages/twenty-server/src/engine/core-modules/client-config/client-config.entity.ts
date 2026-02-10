@@ -159,6 +159,9 @@ export class ClientConfig {
   @Field(() => Boolean)
   isAttachmentPreviewEnabled: boolean;
 
+  @Field(() => Boolean)
+  isAttachmentsAsFieldsEnabled: boolean;
+
   @Field(() => Sentry)
   sentry: Sentry;
 

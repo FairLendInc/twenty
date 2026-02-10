@@ -27,4 +27,6 @@ export const DEFAULT_ICONS_BY_FIELD_TYPE: Record<FieldMetadataType, string> = {
   [FieldMetadataType.RICH_TEXT]: 'IconUsers',
   [FieldMetadataType.RICH_TEXT_V2]: 'IconUsers',
   [FieldMetadataType.TS_VECTOR]: 'IconUsers',
+  [FieldMetadataType.IMAGE]: 'IconPhoto',
+  [FieldMetadataType.PDF]: 'IconFile',
 };

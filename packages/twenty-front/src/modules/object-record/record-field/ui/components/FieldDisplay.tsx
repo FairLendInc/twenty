@@ -6,7 +6,9 @@ import { BooleanFieldDisplay } from '@/object-record/record-field/ui/meta-types/
 import { EmailsFieldDisplay } from '@/object-record/record-field/ui/meta-types/display/components/EmailsFieldDisplay';
 import { FilesFieldDisplay } from '@/object-record/record-field/ui/meta-types/display/components/FilesFieldDisplay';
 import { ForbiddenFieldDisplay } from '@/object-record/record-field/ui/meta-types/display/components/ForbiddenFieldDisplay';
+import { ImageFieldDisplay } from '@/object-record/record-field/ui/meta-types/display/components/ImageFieldDisplay';
 import { LinksFieldDisplay } from '@/object-record/record-field/ui/meta-types/display/components/LinksFieldDisplay';
+import { PdfFieldDisplay } from '@/object-record/record-field/ui/meta-types/display/components/PdfFieldDisplay';
 import { PhonesFieldDisplay } from '@/object-record/record-field/ui/meta-types/display/components/PhonesFieldDisplay';
 import { RatingFieldDisplay } from '@/object-record/record-field/ui/meta-types/display/components/RatingFieldDisplay';
 import { RelationFromManyFieldDisplay } from '@/object-record/record-field/ui/meta-types/display/components/RelationFromManyFieldDisplay';
@@ -18,7 +20,9 @@ import { isFieldArray } from '@/object-record/record-field/ui/types/guards/isFie
 import { isFieldBoolean } from '@/object-record/record-field/ui/types/guards/isFieldBoolean';
 import { isFieldEmails } from '@/object-record/record-field/ui/types/guards/isFieldEmails';
 import { isFieldFiles } from '@/object-record/record-field/ui/types/guards/isFieldFiles';
+import { isFieldImage } from '@/object-record/record-field/ui/types/guards/isFieldImage';
 import { isFieldLinks } from '@/object-record/record-field/ui/types/guards/isFieldLinks';
+import { isFieldPdf } from '@/object-record/record-field/ui/types/guards/isFieldPdf';
 import { isFieldPhones } from '@/object-record/record-field/ui/types/guards/isFieldPhones';
 import { isFieldRating } from '@/object-record/record-field/ui/types/guards/isFieldRating';
 import { isFieldRichText } from '@/object-record/record-field/ui/types/guards/isFieldRichText';
@@ -126,5 +130,9 @@ export const FieldDisplay = () => {
     <EmailsFieldDisplay />
   ) : isFieldPhones(fieldDefinition) ? (
     <PhonesFieldDisplay />
+  ) : isFieldImage(fieldDefinition) ? (
+    <ImageFieldDisplay />
+  ) : isFieldPdf(fieldDefinition) ? (
+    <PdfFieldDisplay />
   ) : null;
 };

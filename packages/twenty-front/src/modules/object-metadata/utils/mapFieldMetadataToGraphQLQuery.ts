@@ -315,5 +315,21 @@ ${mapObjectMetadataToGraphQLQuery({
 }`;
   }
 
+  if (fieldType === FieldMetadataType.IMAGE) {
+    return `${gqlField}
+{
+  primaryAttachmentId
+  additionalAttachmentIds
+}`;
+  }
+
+  if (fieldType === FieldMetadataType.PDF) {
+    return `${gqlField}
+{
+  primaryAttachmentId
+  additionalAttachmentIds
+}`;
+  }
+
   return '';
 };

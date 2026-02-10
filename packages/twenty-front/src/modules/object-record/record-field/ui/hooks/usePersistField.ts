@@ -54,6 +54,10 @@ import { isFieldText } from '@/object-record/record-field/ui/types/guards/isFiel
 import { isFieldTextValue } from '@/object-record/record-field/ui/types/guards/isFieldTextValue';
 import { useUpsertRecordsInStore } from '@/object-record/record-store/hooks/useUpsertRecordsInStore';
 import { getForeignKeyNameFromRelationFieldName } from '@/object-record/utils/getForeignKeyNameFromRelationFieldName';
+import { isFieldImage } from '@/object-record/record-field/ui/types/guards/isFieldImage';
+import { isFieldImageValue } from '@/object-record/record-field/ui/types/guards/isFieldImageValue';
+import { isFieldPdf } from '@/object-record/record-field/ui/types/guards/isFieldPdf';
+import { isFieldPdfValue } from '@/object-record/record-field/ui/types/guards/isFieldPdfValue';
 import { isDeeplyEqual } from '~/utils/isDeeplyEqual';
 
 export const usePersistField = ({
@@ -156,6 +160,12 @@ export const usePersistField = ({
         const fieldIsFiles =
           isFieldFiles(fieldDefinition) && isFieldFilesValue(valueToPersist);
 
+        const fieldIsImage =
+          isFieldImage(fieldDefinition) && isFieldImageValue(valueToPersist);
+
+        const fieldIsPdf =
+          isFieldPdf(fieldDefinition) && isFieldPdfValue(valueToPersist);
+
         const fieldIsUIReadOnly =
           fieldDefinition.metadata.isUIReadOnly ?? false;
 
@@ -184,7 +194,9 @@ export const usePersistField = ({
           fieldIsArray ||
           fieldIsFiles ||
           fieldIsRichText ||
-          fieldIsRichTextV2;
+          fieldIsRichTextV2 ||
+          fieldIsImage ||
+          fieldIsPdf;
 
         if (isValuePersistable) {
           const fieldName = fieldDefinition.metadata.fieldName;

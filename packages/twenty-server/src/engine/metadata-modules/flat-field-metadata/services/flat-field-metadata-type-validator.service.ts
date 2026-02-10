@@ -64,6 +64,8 @@ export class FlatFieldMetadataTypeValidatorService {
       FILES: validateFilesFlatFieldMetadata,
       FULL_NAME: DEFAULT_NO_VALIDATION,
       LINKS: DEFAULT_NO_VALIDATION,
+      IMAGE: DEFAULT_NO_VALIDATION,
+      PDF: DEFAULT_NO_VALIDATION,
       NUMBER: DEFAULT_NO_VALIDATION,
       NUMERIC: rejectUserCreation(
         FieldMetadataType.NUMERIC,

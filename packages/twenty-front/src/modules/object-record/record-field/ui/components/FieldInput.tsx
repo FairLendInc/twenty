@@ -6,10 +6,13 @@ import { EmailsFieldInput } from '@/object-record/record-field/ui/meta-types/inp
 import { FilesFieldInput } from '@/object-record/record-field/ui/meta-types/input/components/FilesFieldInput';
 import { FullNameFieldInput } from '@/object-record/record-field/ui/meta-types/input/components/FullNameFieldInput';
 import { LinksFieldInput } from '@/object-record/record-field/ui/meta-types/input/components/LinksFieldInput';
+import { ImageFieldInput } from '@/object-record/record-field/ui/meta-types/input/components/ImageFieldInput';
 import { MultiSelectFieldInput } from '@/object-record/record-field/ui/meta-types/input/components/MultiSelectFieldInput';
+import { PdfFieldInput } from '@/object-record/record-field/ui/meta-types/input/components/PdfFieldInput';
 import { PhonesFieldInput } from '@/object-record/record-field/ui/meta-types/input/components/PhonesFieldInput';
 import { RawJsonFieldInput } from '@/object-record/record-field/ui/meta-types/input/components/RawJsonFieldInput';
 import { SelectFieldInput } from '@/object-record/record-field/ui/meta-types/input/components/SelectFieldInput';
+import { isFieldImage } from '@/object-record/record-field/ui/types/guards/isFieldImage';
 import { isFieldPhones } from '@/object-record/record-field/ui/types/guards/isFieldPhones';
 
 import { ArrayFieldInput } from '@/object-record/record-field/ui/meta-types/input/components/ArrayFieldInput';
@@ -32,6 +35,7 @@ import { isFieldMorphRelationManyToOne } from '@/object-record/record-field/ui/t
 import { isFieldMorphRelationOneToMany } from '@/object-record/record-field/ui/types/guards/isFieldMorphRelationOneToMany';
 import { isFieldMultiSelect } from '@/object-record/record-field/ui/types/guards/isFieldMultiSelect';
 import { isFieldNumber } from '@/object-record/record-field/ui/types/guards/isFieldNumber';
+import { isFieldPdf } from '@/object-record/record-field/ui/types/guards/isFieldPdf';
 import { isFieldRating } from '@/object-record/record-field/ui/types/guards/isFieldRating';
 import { isFieldRawJson } from '@/object-record/record-field/ui/types/guards/isFieldRawJson';
 import { isFieldRelationManyToOne } from '@/object-record/record-field/ui/types/guards/isFieldRelationManyToOne';
@@ -96,6 +100,10 @@ export const FieldInput = () => {
         <ArrayFieldInput />
       ) : isFieldRichTextV2(fieldDefinition) ? (
         <RichTextFieldInput />
+      ) : isFieldImage(fieldDefinition) ? (
+        <ImageFieldInput />
+      ) : isFieldPdf(fieldDefinition) ? (
+        <PdfFieldInput />
       ) : (
         <></>
       )}

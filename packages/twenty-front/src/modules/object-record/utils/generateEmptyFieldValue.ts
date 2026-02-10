@@ -126,6 +126,13 @@ export const generateEmptyFieldValue = ({
     case FieldMetadataType.FILES: {
       return null;
     }
+    case FieldMetadataType.IMAGE:
+    case FieldMetadataType.PDF: {
+      return {
+        primaryAttachmentId: null,
+        additionalAttachmentIds: null,
+      };
+    }
     default: {
       return assertUnreachable(
         fieldMetadataItem.type,
